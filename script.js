@@ -7,33 +7,23 @@ const finalScoreElement = document.getElementById('finalScore');
 const highScoreDisplayElement = document.getElementById('highScoreDisplay');
 const restartButton = document.getElementById('restartButton');
 
-const gridSize = 20; // Dimensione di ogni "segmento" del verme
-let worm = [{ x: 10, y: 10 }]; // Posizione iniziale del verme
-let food = {}; // Posizione del cibo
-// NUOVO ARRAY PER GLI ASTEROIDI FISSI
-let asteroids = []; 
-// NUOVE VARIABILI PER LO SFONDO ANIMATO
-const STAR_COUNT = 100;
-let stars = [];
-// VARIABILI PER IL POWER-UP
-let powerUp = null; // Posizione del power-up {x, y, type}
-let isShieldActive = false;
-let shieldTimer = 0;
-const SHIELD_DURATION = 50; // Durata dello scudo (in cicli di update)
-// NUOVE VARIABILI E COSTANTI PER I LIVELLI
-let currentLevel = 1;
-const SCORE_TO_NEXT_LEVEL = 10;
-const ASTEROIDS_PER_LEVEL = 2; // Asteroidi aggiunti per ogni livello
-let direction = 'right'; // Direzione iniziale del verme
+const gridSize = 20; 
+let worm = [{ x: 10, y: 10 }]; 
+let food = {}; 
+let direction = 'right'; 
 let score = 0;
 let gameOver = false;
 
+// VARIABILI PER GLI ELEMENTI DI GIOCO
+let asteroids = []; 
+let stars = []; 
+
 // VARIABILI PER LA VELOCITÀ ADATTIVA E IL TIMER
 let gameInterval;
-let gameSpeed = 150; // Velocità in ms. Valore corrente di aggiornamento.
-const initialGameSpeed = 150; // Velocità di base per il reset.
-const speedDecrease = 5; // Di quanto diminuire la velocità (es. 5ms)
-const speedThreshold = 3; // Ogni quante unità di punteggio aumentare la velocità
+let gameSpeed = 150; 
+const initialGameSpeed = 150; 
+const speedDecrease = 5; 
+const speedThreshold = 3; 
 
 // VARIABILI E COSTANTI PER L'HIGH SCORE
 let highScore = 0;
@@ -42,41 +32,38 @@ const HIGH_SCORE_KEY = 'wormDayHighScore';
 // VARIABILI PER LA GESTIONE DELLO SWIPE
 let touchStartX = 0;
 let touchStartY = 0;
-const minSwipeDistance = 10; // Distanza minima in pixel per considerare un movimento come swipe
+const minSwipeDistance = 10;
+
+// VARIABILI PER LO SFONDO ANIMATO
+const STAR_COUNT = 100;
+
+// VARIABILI PER IL POWER-UP
+let powerUp = null;
+let isShieldActive = false;
+let shieldTimer = 0;
+const SHIELD_DURATION = 50; 
+
+// VARIABILI E COSTANTI PER I LIVELLI
+let currentLevel = 1;
+const SCORE_TO_NEXT_LEVEL = 10;
+const ASTEROIDS_PER_LEVEL = 2; // BUG FIX: Aggiunto
+
+// ----------------------------------------------------------------------
+// FUNZIONI DI UTILITÀ (CARICAMENTO, SALVATAGGIO, GENERAZIONE CASUALE)
+// ----------------------------------------------------------------------
 
 function loadHighScore() {
-    // Tenta di recuperare l'high score da localStorage
     const storedScore = localStorage.getItem(HIGH_SCORE_KEY);
     if (storedScore !== null) {
-        // Converte il valore in un numero intero
         highScore = parseInt(storedScore, 10);
     }
 }
 
-// NUOVA FUNZIONE PER CALCOLARE GLI ASTEROIDI
-function calculateAsteroidCount() {
-    // Il livello 1 inizia con un numero base di asteroidi (es. 5)
-    const baseAsteroids = 5; 
-    
-    // Aggiungi un numero di asteroidi proporzionale al livello
-    return baseAsteroids + (currentLevel - 1) * ASTEROIDS_PER_LEVEL;
-}
-
 function saveHighScore() {
-    // Salva l'high score aggiornato
     localStorage.setItem(HIGH_SCORE_KEY, highScore);
 }
 
-// NUOVA FUNZIONE PER GENERARE IL POWER-UP
-function maybeGeneratePowerUp() {
-    // Probabilità di generazione (es. 1 su 30 cicli di generazione cibo)
-    if (Math.random() < 0.03) { 
-        powerUp = generateRandomSafePosition();
-        powerUp.type = 'shield'; // Per ora, solo uno scudo
-    }
-}
-
-// Funzione di utilità per trovare una posizione non occupata (da aggiungere al codice)
+// BUG FIX: FUNZIONE AGGIUNTA per trovare una posizione non occupata
 function generateRandomSafePosition() {
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
@@ -91,7 +78,7 @@ function generateRandomSafePosition() {
 
         collision = false;
         
-        // Controlla collisione con Verme, Cibo e Asteroidi
+        // Controlla collisione con Verme, Cibo, Asteroidi e Power-up
         for (let segment of worm) {
             if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
         }
@@ -99,24 +86,27 @@ function generateRandomSafePosition() {
         for (let asteroid of asteroids) {
             if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
         }
+        if (powerUp && safePos.x === powerUp.x && safePos.y === powerUp.y) collision = true;
     }
     return safePos;
 }
 
 function generateFood() {
-    food = {
-        x: Math.floor(Math.random() * (canvas.width / gridSize)),
-        y: Math.floor(Math.random() * (canvas.height / gridSize))
-    };
-    // Assicurati che il cibo non appaia sul verme
-    for (let segment of worm) {
-        if (segment.x === food.x && segment.y === food.y) {
-            generateFood(); // Rigenera se il cibo è sul verme
-        }
+    food = generateRandomSafePosition();
+}
+
+function calculateAsteroidCount() {
+    const baseAsteroids = 5; 
+    return baseAsteroids + (currentLevel - 1) * ASTEROIDS_PER_LEVEL;
+}
+
+function generateAsteroids(count) {
+    asteroids = [];
+    for (let i = 0; i < count; i++) {
+        asteroids.push(generateRandomSafePosition());
     }
 }
 
-// NUOVA FUNZIONE PER GENERARE LE STELLE
 function generateStars() {
     stars = [];
     const gridWidth = canvas.width;
@@ -126,54 +116,61 @@ function generateStars() {
         stars.push({
             x: Math.random() * gridWidth,
             y: Math.random() * gridHeight,
-            // 'size' e 'speed' casuali per l'effetto parallasse
-            size: Math.random() * 2 + 0.5, // Stelle più piccole si muovono più lentamente
-            speed: Math.random() * 0.1 + 0.05 // Velocità molto bassa
+            size: Math.random() * 2 + 0.5,
+            speed: Math.random() * 0.1 + 0.05
         });
     }
 }
 
+function maybeGeneratePowerUp() {
+    if (Math.random() < 0.03 && powerUp === null) { 
+        powerUp = generateRandomSafePosition();
+        powerUp.type = 'shield';
+    }
+}
+
+// ----------------------------------------------------------------------
+// FUNZIONE DRAW() - DISEGNO
+// ----------------------------------------------------------------------
+
 function draw() {
-    // 1. Cancella e imposta lo sfondo del canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
-    // NUOVO: Disegna le Stelle (Sfondo Animato)
+    // 1. Disegna le Stelle (Sfondo Animato)
     ctx.fillStyle = 'white';
     for (let star of stars) {
         ctx.beginPath();
-        // Disegna un cerchio o un piccolo quadrato per la stella
         ctx.arc(star.x, star.y, star.size / 2, 0, Math.PI * 2); 
         ctx.fill();
     }
     
-    // 2. Disegna il Cibo (un piccolo asteroide o stella)
+    // 2. Disegna il Cibo
     ctx.fillStyle = 'yellow';
     ctx.beginPath();
     ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
     ctx.fill();
 
     // 3. Disegna gli Asteroidi Fissi
-    ctx.fillStyle = '#666666'; // Grigio scuro per l'asteroide
+    ctx.fillStyle = '#666666';
     ctx.strokeStyle = '#444444'; 
     for (let asteroid of asteroids) {
         ctx.fillRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
         ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
     }
 
-    // NUOVO: Disegna il Power-up
+    // 4. Disegna il Power-up
     if (powerUp) {
-        // Disegna un quadrato blu brillante per lo scudo
         ctx.fillStyle = '#00ffff'; 
         ctx.strokeStyle = 'white';
         ctx.fillRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
         ctx.strokeRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
     }
     
-    // 4. DISEGNO DEL VERME
+    // 5. DISEGNO DEL VERME
     
     // Disegna il CORPO del verme (dal secondo segmento in poi)
-    ctx.fillStyle = '#00aaff'; // Corpo azzurro
-    ctx.strokeStyle = '#006699'; // Bordo più scuro
+    ctx.fillStyle = '#00aaff';
+    ctx.strokeStyle = '#006699';
 
     for (let i = 1; i < worm.length; i++) {
         ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
@@ -185,14 +182,13 @@ function draw() {
     const headX = head.x * gridSize;
     const headY = head.y * gridSize;
 
-    // Disegna il blocco base della testa (più brillante)
-    ctx.fillStyle = '#00eaff'; // Testa celeste
+    ctx.fillStyle = '#00eaff'; 
     ctx.fillRect(headX, headY, gridSize, gridSize);
     ctx.strokeStyle = '#006699'; 
     ctx.strokeRect(headX, headY, gridSize, gridSize);
 
-    // Disegna un piccolo Indicatore di direzione (Occhio/Punta) sulla testa
-    ctx.fillStyle = '#ffcc00'; // Giallo brillante
+    // Disegna l'Indicatore di direzione (Occhio/Punta)
+    ctx.fillStyle = '#ffcc00';
 
     let indicatorX = headX + gridSize / 2;
     let indicatorY = headY + gridSize / 2;
@@ -213,33 +209,37 @@ function draw() {
             break;
     }
 
-    // Disegna il cerchio indicatore
     ctx.beginPath();
     ctx.arc(indicatorX, indicatorY, indicatorSize, 0, Math.PI * 2);
     ctx.fill();
-
-    // NUOVO: Effetto Scudo Attivo
+    
+    // 6. Effetto Scudo Attivo
     if (isShieldActive) {
-        ctx.strokeStyle = '#00ffff'; // Bordo ciano brillante
+        ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 3;
         
-        // Disegna un bordo attorno a ogni segmento per mostrare lo scudo
         for (let segment of worm) {
             ctx.strokeRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
         }
-        ctx.lineWidth = 1; // Ripristina la larghezza della linea
+        ctx.lineWidth = 1; 
     }
     
-    // 5. Disegna il Punteggio CORRENTE (in alto a sinistra)
+    // 7. Disegna i Punteggi
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText('Punti: ' + score, 10, 30);
-
-    // 6. Disegna l'High Score (in alto a destra)
+    
     const highScoreText = 'Record: ' + highScore;
     const textWidth = ctx.measureText(highScoreText).width;
     ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30);
+    
+    // 8. Disegna Livello
+    ctx.fillText('Livello: ' + currentLevel, 10, 60);
 }
+
+// ----------------------------------------------------------------------
+// FUNZIONE UPDATE() - LOGICA DI GIOCO
+// ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
@@ -252,7 +252,7 @@ function update() {
         }
     }
     
-    // 2. Muovi le stelle per l'effetto di parallasse
+    // 2. Muovi le stelle (Sfondo Animato)
     const gridWidth = canvas.width;
     const gridHeight = canvas.height;
 
@@ -289,7 +289,7 @@ function update() {
     // 5. Controlla collisione con gli ASTEROIDI (Logica Scudo)
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
-            if (!isShieldActive) {
+            if (!isShieldActive) { 
                 gameOver = true;
             } else {
                  asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
@@ -307,7 +307,7 @@ function update() {
         }
     }
 
-    // --- GESTIONE GAME OVER ---
+    // --- GESTIONE GAME OVER (attivato da asteroidi o coda) ---
     if (gameOver) {
         clearInterval(gameInterval);
 
@@ -346,24 +346,18 @@ function update() {
     if (head.x === food.x && head.y === food.y) {
         score++;
         
-        // NUOVO: CONTROLLO AVANZAMENTO LIVELLO
+        // CONTROLLO AVANZAMENTO LIVELLO
         if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
             currentLevel++;
-            // Avvisa il giocatore (opzionale)
             alert(`Livello ${currentLevel} raggiunto! Nuovi pericoli ti aspettano!`);
-            
-            // Riavvia il gioco per applicare il nuovo livello
-            // Si noti che questo chiama initGame() ma NON resetta lo score o l'High Score.
-            // Utilizziamo una funzione di riavvio parziale per mantenere il punteggio.
             partialGameRestart();
             return; 
         }
-        // FINE CONTROLLO AVANZAMENTO LIVELLO
 
-        generateFood(); // Genera nuovo cibo
-        maybeGeneratePowerUp(); // Tenta di generare un power-up
+        generateFood(); 
+        maybeGeneratePowerUp(); 
 
-        // LOGICA DI VELOCITÀ ADATTIVA (Qui la velocità continua ad aumentare)
+        // LOGICA DI VELOCITÀ ADATTIVA
         if (score % speedThreshold === 0) {
             if (gameSpeed > 50) {
                 gameSpeed -= speedDecrease;
@@ -373,33 +367,60 @@ function update() {
         }
 
     } else {
-        worm.pop(); // Rimuovi la coda se non ha mangiato
+        worm.pop(); 
     }
 
     draw();
 }
 
-// NUOVA FUNZIONE PER IL PASSAGGIO DI LIVELLO
+// ----------------------------------------------------------------------
+// FUNZIONE INITGAME() / RESTART
+// ----------------------------------------------------------------------
+
 function partialGameRestart() {
-    // Mantieni il punteggio e il livello
     gameOver = false;
     clearInterval(gameInterval);
 
-    // Resetta solo gli elementi di gioco
+    // Resetta elementi di gioco, ma mantiene score e level
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
-    powerUp = null; // Rimuove qualsiasi power-up attivo
+    powerUp = null;
+    isShieldActive = false;
+    shieldTimer = 0;
 
-    // Rigenera la scena con le nuove regole del livello
     generateFood(); 
-    generateAsteroids(calculateAsteroidCount()); // Usa la nuova funzione per il conteggio
+    generateAsteroids(calculateAsteroidCount()); 
     
-    // Non c'è bisogno di rigenerare le stelle, si muovono da sole.
-
     draw();
-    // Riavvia il timer con la velocità corrente (già aumentata in update())
     gameInterval = setInterval(update, gameSpeed); 
 }
+
+function initGame() {
+    loadHighScore(); 
+
+    currentLevel = 1;
+    gameSpeed = initialGameSpeed; 
+    worm = [{ x: 10, y: 10 }];
+    direction = 'right';
+    score = 0;
+    gameOver = false;
+    clearInterval(gameInterval);
+
+    powerUp = null;
+    isShieldActive = false;
+    shieldTimer = 0;
+
+    generateFood(); 
+    generateAsteroids(calculateAsteroidCount()); 
+    generateStars(); 
+
+    draw();
+    gameInterval = setInterval(update, gameSpeed); 
+}
+
+// ----------------------------------------------------------------------
+// GESTIONE INPUT (TASTIERA E SWIPE)
+// ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
     if (gameOver) return;
@@ -429,157 +450,68 @@ function handleButtonClick(newDirection) {
     else if (newDirection === 'right' && direction !== 'left') direction = 'right';
 }
 
-// NUOVA FUNZIONE PER GESTIRE LO SWIPE
 function handleSwipe(event) {
     if (gameOver) return;
 
-    // Se l'evento ha più di un punto di contatto (multi-touch), ignora
-    if (event.touches.length > 1) return; 
+    if (event.changedTouches.length === 0) return;
     
-    // Calcola le coordinate finali del tocco
     const touchEndX = event.changedTouches[0].clientX;
     const touchEndY = event.changedTouches[0].clientY;
 
-    // Calcola la distanza percorsa in X e Y
     const diffX = touchEndX - touchStartX;
     const diffY = touchEndY - touchStartY;
 
-    // Controlla se la distanza è sufficiente per essere considerata uno swipe
     if (Math.abs(diffX) < minSwipeDistance && Math.abs(diffY) < minSwipeDistance) {
-        return; // Troppo piccolo, non è uno swipe
+        return;
     }
 
-    // Determina la direzione dello swipe
-    // Controlla se lo swipe orizzontale è maggiore di quello verticale
     if (Math.abs(diffX) > Math.abs(diffY)) { 
-        // Movimento ORIZZONTALE
         if (diffX > 0) {
-            handleButtonClick('right'); // 'right'
+            handleButtonClick('right');
         } else {
-            handleButtonClick('left'); // 'left'
+            handleButtonClick('left');
         }
     } else { 
-        // Movimento VERTICALE
         if (diffY > 0) {
-            handleButtonClick('down'); // 'down'
+            handleButtonClick('down');
         } else {
-            handleButtonClick('up'); // 'up'
+            handleButtonClick('up');
         }
     }
-    
-    // Impedisce lo scorrimento della pagina
     event.preventDefault(); 
 }
 
-// Inizializzazione del gioco
-function initGame() {
-    // 1. Carica l'High Score salvato
-    loadHighScore(); 
+// ----------------------------------------------------------------------
+// EVENT LISTENERS E AVVIO
+// ----------------------------------------------------------------------
 
-    // 2. Resetta le variabili principali
-    currentLevel = 1; // NUOVO: Inizializza il livello
-    gameSpeed = initialGameSpeed; 
-    worm = [{ x: 10, y: 10 }];
-    direction = 'right';
-    score = 0;
-    gameOver = false;
-    clearInterval(gameInterval);
-
-    // 3. Resetta le variabili del Power-up
-    powerUp = null;
-    isShieldActive = false;
-    shieldTimer = 0;
-
-    // 4. Genera gli elementi di gioco
-    generateFood(); 
-    generateAsteroids(calculateAsteroidCount()); // USA LA NUOVA FUNZIONE PER IL CONTEGGIO
-
-    // 5. Genera lo sfondo animato
-    generateStars(); 
-
-    // 6. Disegna la scena iniziale e avvia il ciclo di gioco
-    draw();
-    gameInterval = setInterval(update, gameSpeed); 
-}
-
-// NUOVA FUNZIONE PER GENERARE GLI ASTEROIDI
-function generateAsteroids(count) {
-    asteroids = []; // Resetta l'array ad ogni nuovo gioco
-    
-    // Calcola le dimensioni della griglia
-    const gridWidth = canvas.width / gridSize;
-    const gridHeight = canvas.height / gridSize;
-
-    for (let i = 0; i < count; i++) {
-        let newAsteroid = {};
-        let collision = true;
-        
-        // Continua a cercare una posizione finché non ne trova una libera
-        while (collision) {
-            newAsteroid = {
-                x: Math.floor(Math.random() * gridWidth),
-                y: Math.floor(Math.random() * gridHeight)
-            };
-
-            collision = false;
-
-            // 1. Controlla collisione con il Verme iniziale
-            for (let segment of worm) {
-                if (segment.x === newAsteroid.x && segment.y === newAsteroid.y) {
-                    collision = true;
-                    break;
-                }
-            }
-            
-            // 2. Controlla collisione con il Cibo iniziale
-            if (newAsteroid.x === food.x && newAsteroid.y === food.y) {
-                 collision = true;
-            }
-
-            // 3. Controlla collisione con altri Asteroidi
-            for (let existing of asteroids) {
-                if (existing.x === newAsteroid.x && existing.y === newAsteroid.y) {
-                    collision = true;
-                    break;
-                }
-            }
-        }
-        
-        asteroids.push(newAsteroid);
-    }
-}
-
-// Event Listeners
 document.addEventListener('keydown', handleKeyPress);
 
+// Pulsanti virtuali
 document.getElementById('up').addEventListener('click', () => handleButtonClick('up'));
 document.getElementById('down').addEventListener('click', () => handleButtonClick('down'));
 document.getElementById('left').addEventListener('click', () => handleButtonClick('left'));
 document.getElementById('right').addEventListener('click', () => handleButtonClick('right'));
 
-// EVENT LISTENER PER IL PULSANTE RICOMINCIA
+// Pulsante Ricomincia
 restartButton.addEventListener('click', () => {
-    // Nasconde la schermata di Game Over
     gameOverScreen.classList.add('hidden');
-    // Avvia un nuovo gioco
     initGame();
 });
 
-// EVENT LISTENERS PER LO SWIPE SUL CANVAS
+// Event Listeners per lo Swipe sul Canvas
 canvas.addEventListener('touchstart', event => {
     if (gameOver) return;
     touchStartX = event.touches[0].clientX;
     touchStartY = event.touches[0].clientY;
-    // Impedisce lo scorrimento della pagina all'inizio del tocco
     event.preventDefault(); 
-}, { passive: false }); // { passive: false } è necessario per prevenire il default
+}, { passive: false }); 
 
 canvas.addEventListener('touchmove', event => {
-    // Impedisce lo scorrimento della pagina durante il tocco
-    event.preventDefault(); 
+    // BUG FIX: Evita scorrimento della pagina durante il tocco (necessario per iOS/Android)
+    if (!gameOver) event.preventDefault(); 
 }, { passive: false });
 
 canvas.addEventListener('touchend', handleSwipe);
 
-// Avvia il gioco
 initGame();
