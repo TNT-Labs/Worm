@@ -12,6 +12,9 @@ let worm = [{ x: 10, y: 10 }]; // Posizione iniziale del verme
 let food = {}; // Posizione del cibo
 // NUOVO ARRAY PER GLI ASTEROIDI FISSI
 let asteroids = []; 
+// NUOVE VARIABILI PER LO SFONDO ANIMATO
+const STAR_COUNT = 100;
+let stars = [];
 let direction = 'right'; // Direzione iniziale del verme
 let score = 0;
 let gameOver = false;
@@ -59,16 +62,43 @@ function generateFood() {
     }
 }
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Cancella tutto
+// NUOVA FUNZIONE PER GENERARE LE STELLE
+function generateStars() {
+    stars = [];
+    const gridWidth = canvas.width;
+    const gridHeight = canvas.height;
 
-    // 1. Disegna il Cibo (un piccolo asteroide o stella)
+    for (let i = 0; i < STAR_COUNT; i++) {
+        stars.push({
+            x: Math.random() * gridWidth,
+            y: Math.random() * gridHeight,
+            // 'size' e 'speed' casuali per l'effetto parallasse
+            size: Math.random() * 2 + 0.5, // Stelle più piccole si muovono più lentamente
+            speed: Math.random() * 0.1 + 0.05 // Velocità molto bassa
+        });
+    }
+}
+
+function draw() {
+    // 1. Cancella e imposta lo sfondo del canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+    // NUOVO: Disegna le Stelle (Sfondo Animato)
+    ctx.fillStyle = 'white';
+    for (let star of stars) {
+        ctx.beginPath();
+        // Disegna un cerchio o un piccolo quadrato per la stella
+        ctx.arc(star.x, star.y, star.size / 2, 0, Math.PI * 2); 
+        ctx.fill();
+    }
+    
+    // 2. Disegna il Cibo (un piccolo asteroide o stella)
     ctx.fillStyle = 'yellow';
     ctx.beginPath();
     ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Disegna gli Asteroidi Fissi
+    // 3. Disegna gli Asteroidi Fissi
     ctx.fillStyle = '#666666'; // Grigio scuro per l'asteroide
     ctx.strokeStyle = '#444444'; 
     for (let asteroid of asteroids) {
@@ -76,7 +106,7 @@ function draw() {
         ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
     }
     
-    // 3. DISEGNO DEL VERME
+    // 4. DISEGNO DEL VERME
     
     // Disegna il CORPO del verme (dal secondo segmento in poi)
     ctx.fillStyle = '#00aaff'; // Corpo azzurro
@@ -125,12 +155,12 @@ function draw() {
     ctx.arc(indicatorX, indicatorY, indicatorSize, 0, Math.PI * 2);
     ctx.fill();
     
-    // 4. Disegna il Punteggio CORRENTE (in alto a sinistra)
+    // 5. Disegna il Punteggio CORRENTE (in alto a sinistra)
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText('Punti: ' + score, 10, 30);
 
-    // 5. Disegna l'High Score (in alto a destra)
+    // 6. Disegna l'High Score (in alto a destra)
     const highScoreText = 'Record: ' + highScore;
     const textWidth = ctx.measureText(highScoreText).width;
     ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30);
@@ -138,6 +168,27 @@ function draw() {
 
 function update() {
     if (gameOver) return;
+
+    // NUOVO: Muovi le stelle per l'effetto di parallasse
+    const gridWidth = canvas.width;
+    const gridHeight = canvas.height;
+
+    for (let star of stars) {
+        // Muoviti lentamente in diagonale (ad esempio, in basso a destra)
+        star.x += star.speed;
+        star.y += star.speed / 2; // Movimento verticale leggermente più lento
+
+        // Controlla i bordi per farle riapparire
+        if (star.x > gridWidth) {
+            star.x = 0;
+            star.y = Math.random() * gridHeight; // Ricompare casualmente in Y
+        }
+        if (star.y > gridHeight) {
+            star.y = 0;
+            star.x = Math.random() * gridWidth; // Ricompare casualmente in X
+        }
+    }
+    // FINE LOGICA STELLE
 
     // 1. Muovi il verme
     const head = { x: worm[0].x, y: worm[0].y };
@@ -149,16 +200,15 @@ function update() {
         case 'right': head.x++; break;
     }
 
-    // 2. Controlla i bordi (il verme esce da un lato e rientra dall'altro)
+    // 2. Controlla i bordi (Teletrasporto)
     if (head.x < 0) head.x = (canvas.width / gridSize) - 1;
     if (head.x >= (canvas.width / gridSize)) head.x = 0;
     if (head.y < 0) head.y = (canvas.height / gridSize) - 1;
     if (head.y >= (canvas.height / gridSize)) head.y = 0;
 
-    // 3. Controlla collisione con gli ASTEROIDI (NUOVA LOGICA)
+    // 3. Controlla collisione con gli ASTEROIDI
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
-            // Se si scontra con un asteroide, Game Over
             gameOver = true;
         }
     }
@@ -166,7 +216,6 @@ function update() {
     // 4. Controlla collisione con se stesso
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
-            // Se si scontra con la sua coda, Game Over
             gameOver = true;
         }
     }
@@ -221,6 +270,7 @@ function update() {
 
     draw();
 }
+
 function handleKeyPress(event) {
     if (gameOver) return;
     const keyPressed = event.key;
@@ -310,13 +360,17 @@ function initGame() {
     // 4. Genera il cibo (deve avvenire prima degli asteroidi per evitare sovrapposizioni)
     generateFood(); 
 
-    // 5. Genera gli asteroidi (Genera qui il numero di asteroidi desiderato)
-    generateAsteroids(5); // Esempio: genera 5 asteroidi
+    // 5. Genera gli asteroidi
+    generateAsteroids(5); // Genera 5 asteroidi
 
-    // 6. Disegna la scena iniziale e avvia il ciclo di gioco
+    // NUOVO: 6. Genera lo sfondo animato
+    generateStars(); 
+
+    // 7. Disegna la scena iniziale e avvia il ciclo di gioco
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
+
 // NUOVA FUNZIONE PER GENERARE GLI ASTEROIDI
 function generateAsteroids(count) {
     asteroids = []; // Resetta l'array ad ogni nuovo gioco
