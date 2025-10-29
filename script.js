@@ -16,8 +16,8 @@ let gameOver = false;
 
 // VARIABILI PER LA VELOCITÀ ADATTIVA E IL TIMER
 let gameInterval;
-let gameSpeed = 150; // Velocità iniziale (in ms - più è alto, più è lento)
-const initialGameSpeed = 150; // Velocità da usare per il reset
+let gameSpeed = 150; // Velocità in ms. Valore corrente di aggiornamento.
+const initialGameSpeed = 150; // Velocità di base per il reset.
 const speedDecrease = 5; // Di quanto diminuire la velocità (es. 5ms)
 const speedThreshold = 3; // Ogni quante unità di punteggio aumentare la velocità
 
@@ -106,7 +106,7 @@ function update() {
             
             // LOGICA DI GAME OVER PERSONALIZZATA
             gameOver = true;
-            clearInterval(gameInterval);
+            clearInterval(gameInterval); // ✅ CORREZIONE: Assicura che il timer si fermi subito
 
             let isNewRecord = false;
             if (score > highScore) {
@@ -117,12 +117,15 @@ function update() {
 
             // 2. Aggiorna e mostra la schermata di Game Over
             finalScoreElement.textContent = score;
-            highScoreDisplayElement.textContent = highScore;
-            gameOverScreen.classList.remove('hidden');
-
+            
+            // Aggiorna la visualizzazione del record
             if (isNewRecord) {
-                 highScoreDisplayElement.textContent += " (Nuovo Record!)";
+                 highScoreDisplayElement.textContent = `${highScore} (Nuovo Record!)`;
+            } else {
+                 highScoreDisplayElement.textContent = highScore;
             }
+            
+            gameOverScreen.classList.remove('hidden');
             
             return;
         }
@@ -186,14 +189,14 @@ function handleButtonClick(newDirection) {
 function initGame() {
     loadHighScore(); 
 
-    // Resetta la velocità all'inizio del gioco
+    // ✅ CORREZIONE: Resetta la velocità all'inizio del gioco
     gameSpeed = initialGameSpeed; 
 
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     score = 0;
     gameOver = false;
-    clearInterval(gameInterval);
+    clearInterval(gameInterval); // Resetta qualsiasi timer attivo
     generateFood();
     draw();
     
