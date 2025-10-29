@@ -25,6 +25,11 @@ const speedThreshold = 3; // Ogni quante unità di punteggio aumentare la veloci
 let highScore = 0;
 const HIGH_SCORE_KEY = 'wormDayHighScore';
 
+// VARIABILI PER LA GESTIONE DELLO SWIPE
+let touchStartX = 0;
+let touchStartY = 0;
+const minSwipeDistance = 10; // Distanza minima in pixel per considerare un movimento come swipe
+
 function loadHighScore() {
     // Tenta di recuperare l'high score da localStorage
     const storedScore = localStorage.getItem(HIGH_SCORE_KEY);
@@ -185,6 +190,48 @@ function handleButtonClick(newDirection) {
     else if (newDirection === 'right' && direction !== 'left') direction = 'right';
 }
 
+// NUOVA FUNZIONE PER GESTIRE LO SWIPE
+function handleSwipe(event) {
+    if (gameOver) return;
+
+    // Se l'evento ha più di un punto di contatto (multi-touch), ignora
+    if (event.touches.length > 1) return; 
+    
+    // Calcola le coordinate finali del tocco
+    const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
+
+    // Calcola la distanza percorsa in X e Y
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+
+    // Controlla se la distanza è sufficiente per essere considerata uno swipe
+    if (Math.abs(diffX) < minSwipeDistance && Math.abs(diffY) < minSwipeDistance) {
+        return; // Troppo piccolo, non è uno swipe
+    }
+
+    // Determina la direzione dello swipe
+    // Controlla se lo swipe orizzontale è maggiore di quello verticale
+    if (Math.abs(diffX) > Math.abs(diffY)) { 
+        // Movimento ORIZZONTALE
+        if (diffX > 0) {
+            handleButtonClick('right'); // 'right'
+        } else {
+            handleButtonClick('left'); // 'left'
+        }
+    } else { 
+        // Movimento VERTICALE
+        if (diffY > 0) {
+            handleButtonClick('down'); // 'down'
+        } else {
+            handleButtonClick('up'); // 'up'
+        }
+    }
+    
+    // Impedisce lo scorrimento della pagina
+    event.preventDefault(); 
+}
+
 // Inizializzazione del gioco
 function initGame() {
     loadHighScore(); 
@@ -219,6 +266,22 @@ restartButton.addEventListener('click', () => {
     // Avvia un nuovo gioco
     initGame();
 });
+
+// EVENT LISTENERS PER LO SWIPE SUL CANVAS
+canvas.addEventListener('touchstart', event => {
+    if (gameOver) return;
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+    // Impedisce lo scorrimento della pagina all'inizio del tocco
+    event.preventDefault(); 
+}, { passive: false }); // { passive: false } è necessario per prevenire il default
+
+canvas.addEventListener('touchmove', event => {
+    // Impedisce lo scorrimento della pagina durante il tocco
+    event.preventDefault(); 
+}, { passive: false });
+
+canvas.addEventListener('touchend', handleSwipe);
 
 // Avvia il gioco
 initGame();
