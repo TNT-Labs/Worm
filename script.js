@@ -10,6 +10,8 @@ const restartButton = document.getElementById('restartButton');
 const gridSize = 20; // Dimensione di ogni "segmento" del verme
 let worm = [{ x: 10, y: 10 }]; // Posizione iniziale del verme
 let food = {}; // Posizione del cibo
+// NUOVO ARRAY PER GLI ASTEROIDI FISSI
+let asteroids = []; 
 let direction = 'right'; // Direzione iniziale del verme
 let score = 0;
 let gameOver = false;
@@ -66,6 +68,14 @@ function draw() {
     ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
     ctx.fill();
 
+    // NUOVO: Disegna gli Asteroidi
+    ctx.fillStyle = '#666666'; // Grigio scuro per l'asteroide
+    ctx.strokeStyle = '#444444'; 
+    for (let asteroid of asteroids) {
+        ctx.fillRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
+        ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
+    }
+    
     // Disegna il verme
     for (let i = 0; i < worm.length; i++) {
         ctx.fillStyle = (i === 0) ? '#00eaff' : '#00aaff'; // Testa celeste, corpo azzurro
@@ -89,7 +99,7 @@ function draw() {
 function update() {
     if (gameOver) return;
 
-    // Muovi il verme
+    // 1. Muovi il verme
     const head = { x: worm[0].x, y: worm[0].y };
 
     switch (direction) {
@@ -99,46 +109,56 @@ function update() {
         case 'right': head.x++; break;
     }
 
-    // Controlla i bordi (il verme esce da un lato e rientra dall'altro)
+    // 2. Controlla i bordi (il verme esce da un lato e rientra dall'altro)
     if (head.x < 0) head.x = (canvas.width / gridSize) - 1;
     if (head.x >= (canvas.width / gridSize)) head.x = 0;
     if (head.y < 0) head.y = (canvas.height / gridSize) - 1;
     if (head.y >= (canvas.height / gridSize)) head.y = 0;
 
-    // Controlla collisione con se stesso
-    for (let i = 1; i < worm.length; i++) {
-        if (head.x === worm[i].x && head.y === worm[i].y) {
-            
-            // LOGICA DI GAME OVER PERSONALIZZATA
+    // 3. Controlla collisione con gli ASTEROIDI (NUOVA LOGICA)
+    for (let asteroid of asteroids) {
+        if (head.x === asteroid.x && head.y === asteroid.y) {
+            // Se si scontra con un asteroide, Game Over
             gameOver = true;
-            clearInterval(gameInterval); // ✅ CORREZIONE: Assicura che il timer si fermi subito
-
-            let isNewRecord = false;
-            if (score > highScore) {
-                highScore = score;
-                saveHighScore();
-                isNewRecord = true;
-            }
-
-            // 2. Aggiorna e mostra la schermata di Game Over
-            finalScoreElement.textContent = score;
-            
-            // Aggiorna la visualizzazione del record
-            if (isNewRecord) {
-                 highScoreDisplayElement.textContent = `${highScore} (Nuovo Record!)`;
-            } else {
-                 highScoreDisplayElement.textContent = highScore;
-            }
-            
-            gameOverScreen.classList.remove('hidden');
-            
-            return;
         }
     }
 
+    // 4. Controlla collisione con se stesso
+    for (let i = 1; i < worm.length; i++) {
+        if (head.x === worm[i].x && head.y === worm[i].y) {
+            // Se si scontra con la sua coda, Game Over
+            gameOver = true;
+        }
+    }
+
+    // --- GESTIONE GAME OVER ---
+    if (gameOver) {
+        clearInterval(gameInterval);
+
+        let isNewRecord = false;
+        if (score > highScore) {
+            highScore = score;
+            saveHighScore();
+            isNewRecord = true;
+        }
+
+        // Aggiorna e mostra la schermata di Game Over
+        finalScoreElement.textContent = score;
+        
+        if (isNewRecord) {
+             highScoreDisplayElement.textContent = `${highScore} (Nuovo Record!)`;
+        } else {
+             highScoreDisplayElement.textContent = highScore;
+        }
+        
+        gameOverScreen.classList.remove('hidden');
+        return;
+    }
+    // -------------------------
+
     worm.unshift(head); // Aggiungi la nuova testa
 
-    // Controlla se il verme ha mangiato il cibo
+    // 5. Controlla se il verme ha mangiato il cibo
     if (head.x === food.x && head.y === food.y) {
         score++;
         generateFood(); // Genera nuovo cibo
@@ -156,12 +176,11 @@ function update() {
         // FINE LOGICA DI VELOCITÀ ADATTIVA
 
     } else {
-        worm.pop(); // Rimuovi la coda se non ha mangiato
+        worm.pop(); // Rimuovi la coda se non ha mangiato (mantiene la lunghezza)
     }
 
     draw();
 }
-
 function handleKeyPress(event) {
     if (gameOver) return;
     const keyPressed = event.key;
@@ -233,22 +252,76 @@ function handleSwipe(event) {
 }
 
 // Inizializzazione del gioco
+// Inizializzazione del gioco
 function initGame() {
+    // 1. Carica l'High Score salvato
     loadHighScore(); 
 
-    // ✅ CORREZIONE: Resetta la velocità all'inizio del gioco
+    // 2. Resetta la velocità al valore di base
     gameSpeed = initialGameSpeed; 
 
+    // 3. Resetta lo stato del verme e del gioco
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     score = 0;
     gameOver = false;
     clearInterval(gameInterval); // Resetta qualsiasi timer attivo
-    generateFood();
+
+    // 4. Genera il cibo (deve avvenire prima degli asteroidi per evitare sovrapposizioni)
+    generateFood(); 
+
+    // 5. Genera gli asteroidi (Genera qui il numero di asteroidi desiderato)
+    generateAsteroids(5); // Esempio: genera 5 asteroidi
+
+    // 6. Disegna la scena iniziale e avvia il ciclo di gioco
     draw();
-    
-    // Avvia il ciclo di gioco con la velocità di base
     gameInterval = setInterval(update, gameSpeed); 
+}
+// NUOVA FUNZIONE PER GENERARE GLI ASTEROIDI
+function generateAsteroids(count) {
+    asteroids = []; // Resetta l'array ad ogni nuovo gioco
+    
+    // Calcola le dimensioni della griglia
+    const gridWidth = canvas.width / gridSize;
+    const gridHeight = canvas.height / gridSize;
+
+    for (let i = 0; i < count; i++) {
+        let newAsteroid = {};
+        let collision = true;
+        
+        // Continua a cercare una posizione finché non ne trova una libera
+        while (collision) {
+            newAsteroid = {
+                x: Math.floor(Math.random() * gridWidth),
+                y: Math.floor(Math.random() * gridHeight)
+            };
+
+            collision = false;
+
+            // 1. Controlla collisione con il Verme iniziale
+            for (let segment of worm) {
+                if (segment.x === newAsteroid.x && segment.y === newAsteroid.y) {
+                    collision = true;
+                    break;
+                }
+            }
+            
+            // 2. Controlla collisione con il Cibo iniziale
+            if (newAsteroid.x === food.x && newAsteroid.y === food.y) {
+                 collision = true;
+            }
+
+            // 3. Controlla collisione con altri Asteroidi
+            for (let existing of asteroids) {
+                if (existing.x === newAsteroid.x && existing.y === newAsteroid.y) {
+                    collision = true;
+                    break;
+                }
+            }
+        }
+        
+        asteroids.push(newAsteroid);
+    }
 }
 
 // Event Listeners
