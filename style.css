@@ -1,0 +1,47 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background-color: #0a0a0a;
+    color: #e0e0e0;
+    font-family: sans-serif;
+    margin: 0;
+}
+
+h1 {
+    color: #00eaff;
+    margin-bottom: 20px;
+}
+
+canvas {
+    border: 2px solid #00eaff;
+    background-color: #000033; /* Sfondo spaziale scuro */
+}
+
+#controls {
+    margin-top: 20px;
+    display: none; /* Nascondi di default, mostra solo su touch screen se necessario */
+}
+
+#controls button {
+    background-color: #00aaff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    margin: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+}
+#controls button:hover {
+    background-color: #0077cc;
+}
+
+/* Media query per mostrare i controlli su schermi più piccoli */
+@media (max-width: 600px) {
+    #controls {
+        display: block; /* Mostra i controlli su schermi piccoli */
+    }
+}
