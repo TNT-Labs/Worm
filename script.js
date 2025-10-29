@@ -1,27 +1,44 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// RIFERIMENTI DOM PER LA SCHERMATA DI GAME OVER
+const gameOverScreen = document.getElementById('gameOverScreen');
+const finalScoreElement = document.getElementById('finalScore');
+const highScoreDisplayElement = document.getElementById('highScoreDisplay');
+const restartButton = document.getElementById('restartButton');
+
 const gridSize = 20; // Dimensione di ogni "segmento" del verme
 let worm = [{ x: 10, y: 10 }]; // Posizione iniziale del verme
 let food = {}; // Posizione del cibo
 let direction = 'right'; // Direzione iniziale del verme
 let score = 0;
 let gameOver = false;
-// Variabile globale per il timer
-let gameInterval;
 
-// Variabile di VELOCITÀ BASE (in ms - più è alto, più è lento)
-let gameSpeed = 150; 
+// VARIABILI PER LA VELOCITÀ ADATTIVA E IL TIMER
+let gameInterval;
+let gameSpeed = 150; // Velocità iniziale (in ms - più è alto, più è lento)
+const initialGameSpeed = 150; // Velocità da usare per il reset
 const speedDecrease = 5; // Di quanto diminuire la velocità (es. 5ms)
 const speedThreshold = 3; // Ogni quante unità di punteggio aumentare la velocità
 
-// NUOVA VARIABILE GLOBALE PER L'HIGH SCORE
+// VARIABILI E COSTANTI PER L'HIGH SCORE
 let highScore = 0;
+const HIGH_SCORE_KEY = 'wormDayHighScore';
 
-// CHIAVE DI ARCHIVIAZIONE
-const HIGH_SCORE_KEY = 'wormDayHighScore'; 
+function loadHighScore() {
+    // Tenta di recuperare l'high score da localStorage
+    const storedScore = localStorage.getItem(HIGH_SCORE_KEY);
+    if (storedScore !== null) {
+        // Converte il valore in un numero intero
+        highScore = parseInt(storedScore, 10);
+    }
+}
 
-// Usiamo una costante per la chiave per evitare errori di battitura
+function saveHighScore() {
+    // Salva l'high score aggiornato
+    localStorage.setItem(HIGH_SCORE_KEY, highScore);
+}
+
 function generateFood() {
     food = {
         x: Math.floor(Math.random() * (canvas.width / gridSize)),
@@ -36,24 +53,32 @@ function generateFood() {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Cancella tutto
 
-    // Disegna il cibo... (nessuna modifica qui)
-    // ...
+    // Disegna il cibo (un piccolo asteroide o stella)
+    ctx.fillStyle = 'yellow';
+    ctx.beginPath();
+    ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Disegna il verme... (nessuna modifica qui)
-    // ...
-    
+    // Disegna il verme
+    for (let i = 0; i < worm.length; i++) {
+        ctx.fillStyle = (i === 0) ? '#00eaff' : '#00aaff'; // Testa celeste, corpo azzurro
+        ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
+        ctx.strokeStyle = '#006699'; // Bordo più scuro
+        ctx.strokeRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
+    }
+
     // Disegna il punteggio CORRENTE (in alto a sinistra)
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText('Punti: ' + score, 10, 30);
 
-    // NUOVO: Disegna l'High Score (in alto a destra)
+    // Disegna l'High Score (in alto a destra)
     const highScoreText = 'Record: ' + highScore;
     const textWidth = ctx.measureText(highScoreText).width;
     // Posizionamento basato sulla larghezza del testo
-    ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30); 
+    ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30);
 }
 
 function update() {
@@ -79,19 +104,25 @@ function update() {
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
             
-            // --- INIZIO NUOVA LOGICA DI GAME OVER ---
+            // LOGICA DI GAME OVER PERSONALIZZATA
             gameOver = true;
             clearInterval(gameInterval);
 
-            // Controlla se il punteggio corrente è un nuovo record
+            let isNewRecord = false;
             if (score > highScore) {
-                highScore = score; // Aggiorna la variabile locale
-                saveHighScore(); // Salva in localStorage
-                alert('NUOVO RECORD! Punteggio: ' + score);
-            } else {
-                alert('Game Over! Punteggio: ' + score);
+                highScore = score;
+                saveHighScore();
+                isNewRecord = true;
             }
-            // --- FINE NUOVA LOGICA DI GAME OVER ---
+
+            // 2. Aggiorna e mostra la schermata di Game Over
+            finalScoreElement.textContent = score;
+            highScoreDisplayElement.textContent = highScore;
+            gameOverScreen.classList.remove('hidden');
+
+            if (isNewRecord) {
+                 highScoreDisplayElement.textContent += " (Nuovo Record!)";
+            }
             
             return;
         }
@@ -104,21 +135,18 @@ function update() {
         score++;
         generateFood(); // Genera nuovo cibo
 
-        // --- INIZIO NUOVA LOGICA DI VELOCITÀ ---
-        // Controlla se è il momento di aumentare la velocità
+        // LOGICA DI VELOCITÀ ADATTIVA
         if (score % speedThreshold === 0) {
-            // Assicurati che il gioco non diventi *troppo* veloce
-            if (gameSpeed > 50) { 
+            if (gameSpeed > 50) { // Limite di velocità minima (massima velocità)
                 gameSpeed -= speedDecrease;
                 
                 // Riavvia il timer con la nuova velocità
                 clearInterval(gameInterval);
                 gameInterval = setInterval(update, gameSpeed);
-                
-                console.log("Velocità aumentata a:", gameSpeed); // Utile per il debug
             }
         }
-        // --- FINE NUOVA LOGICA DI VELOCITÀ ---
+        // FINE LOGICA DI VELOCITÀ ADATTIVA
+
     } else {
         worm.pop(); // Rimuovi la coda se non ha mangiato
     }
@@ -154,26 +182,12 @@ function handleButtonClick(newDirection) {
     else if (newDirection === 'right' && direction !== 'left') direction = 'right';
 }
 
-function loadHighScore() {
-    // Tenta di recuperare l'high score da localStorage
-    const storedScore = localStorage.getItem(HIGH_SCORE_KEY);
-    if (storedScore !== null) {
-        // Converte il valore in un numero intero
-        highScore = parseInt(storedScore, 10); 
-    }
-}
-
-function saveHighScore() {
-    // Salva l'high score aggiornato
-    localStorage.setItem(HIGH_SCORE_KEY, highScore);
-}
-
 // Inizializzazione del gioco
 function initGame() {
     loadHighScore(); 
 
-    // NUOVO: Resetta la velocità all'inizio del gioco
-    gameSpeed = 150; // Resetta al valore iniziale
+    // Resetta la velocità all'inizio del gioco
+    gameSpeed = initialGameSpeed; 
 
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
@@ -183,7 +197,7 @@ function initGame() {
     generateFood();
     draw();
     
-    // NUOVO: Usa la velocità di base per il primo avvio
+    // Avvia il ciclo di gioco con la velocità di base
     gameInterval = setInterval(update, gameSpeed); 
 }
 
@@ -194,6 +208,14 @@ document.getElementById('up').addEventListener('click', () => handleButtonClick(
 document.getElementById('down').addEventListener('click', () => handleButtonClick('down'));
 document.getElementById('left').addEventListener('click', () => handleButtonClick('left'));
 document.getElementById('right').addEventListener('click', () => handleButtonClick('right'));
+
+// EVENT LISTENER PER IL PULSANTE RICOMINCIA
+restartButton.addEventListener('click', () => {
+    // Nasconde la schermata di Game Over
+    gameOverScreen.classList.add('hidden');
+    // Avvia un nuovo gioco
+    initGame();
+});
 
 // Avvia il gioco
 initGame();
