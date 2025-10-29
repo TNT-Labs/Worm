@@ -15,6 +15,11 @@ let asteroids = [];
 // NUOVE VARIABILI PER LO SFONDO ANIMATO
 const STAR_COUNT = 100;
 let stars = [];
+// VARIABILI PER IL POWER-UP
+let powerUp = null; // Posizione del power-up {x, y, type}
+let isShieldActive = false;
+let shieldTimer = 0;
+const SHIELD_DURATION = 50; // Durata dello scudo (in cicli di update)
 let direction = 'right'; // Direzione iniziale del verme
 let score = 0;
 let gameOver = false;
@@ -47,6 +52,42 @@ function loadHighScore() {
 function saveHighScore() {
     // Salva l'high score aggiornato
     localStorage.setItem(HIGH_SCORE_KEY, highScore);
+}
+
+// NUOVA FUNZIONE PER GENERARE IL POWER-UP
+function maybeGeneratePowerUp() {
+    // Probabilità di generazione (es. 1 su 30 cicli di generazione cibo)
+    if (Math.random() < 0.03) { 
+        powerUp = generateRandomSafePosition();
+        powerUp.type = 'shield'; // Per ora, solo uno scudo
+    }
+}
+
+// Funzione di utilità per trovare una posizione non occupata (da aggiungere al codice)
+function generateRandomSafePosition() {
+    const gridWidth = canvas.width / gridSize;
+    const gridHeight = canvas.height / gridSize;
+    let safePos = {};
+    let collision = true;
+
+    while (collision) {
+        safePos = {
+            x: Math.floor(Math.random() * gridWidth),
+            y: Math.floor(Math.random() * gridHeight)
+        };
+
+        collision = false;
+        
+        // Controlla collisione con Verme, Cibo e Asteroidi
+        for (let segment of worm) {
+            if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
+        }
+        if (safePos.x === food.x && safePos.y === food.y) collision = true;
+        for (let asteroid of asteroids) {
+            if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
+        }
+    }
+    return safePos;
 }
 
 function generateFood() {
@@ -105,6 +146,15 @@ function draw() {
         ctx.fillRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
         ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
     }
+
+    // NUOVO: Disegna il Power-up
+    if (powerUp) {
+        // Disegna un quadrato blu brillante per lo scudo
+        ctx.fillStyle = '#00ffff'; 
+        ctx.strokeStyle = 'white';
+        ctx.fillRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
+        ctx.strokeRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
+    }
     
     // 4. DISEGNO DEL VERME
     
@@ -154,6 +204,18 @@ function draw() {
     ctx.beginPath();
     ctx.arc(indicatorX, indicatorY, indicatorSize, 0, Math.PI * 2);
     ctx.fill();
+
+    // NUOVO: Effetto Scudo Attivo
+    if (isShieldActive) {
+        ctx.strokeStyle = '#00ffff'; // Bordo ciano brillante
+        ctx.lineWidth = 3;
+        
+        // Disegna un bordo attorno a ogni segmento per mostrare lo scudo
+        for (let segment of worm) {
+            ctx.strokeRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+        }
+        ctx.lineWidth = 1; // Ripristina la larghezza della linea
+    }
     
     // 5. Disegna il Punteggio CORRENTE (in alto a sinistra)
     ctx.fillStyle = 'white';
@@ -169,28 +231,34 @@ function draw() {
 function update() {
     if (gameOver) return;
 
-    // NUOVO: Muovi le stelle per l'effetto di parallasse
+    // 1. GESTIONE TIMER SCUDO
+    if (isShieldActive) {
+        shieldTimer--;
+        if (shieldTimer <= 0) {
+            isShieldActive = false; // Scudo disattivato
+            console.log("Scudo disattivato."); 
+        }
+    }
+    
+    // 2. Muovi le stelle per l'effetto di parallasse
     const gridWidth = canvas.width;
     const gridHeight = canvas.height;
 
     for (let star of stars) {
-        // Muoviti lentamente in diagonale (ad esempio, in basso a destra)
         star.x += star.speed;
-        star.y += star.speed / 2; // Movimento verticale leggermente più lento
+        star.y += star.speed / 2;
 
-        // Controlla i bordi per farle riapparire
         if (star.x > gridWidth) {
             star.x = 0;
-            star.y = Math.random() * gridHeight; // Ricompare casualmente in Y
+            star.y = Math.random() * gridHeight;
         }
         if (star.y > gridHeight) {
             star.y = 0;
-            star.x = Math.random() * gridWidth; // Ricompare casualmente in X
+            star.x = Math.random() * gridWidth;
         }
     }
-    // FINE LOGICA STELLE
 
-    // 1. Muovi il verme
+    // 3. Muovi il verme (calcola la nuova testa)
     const head = { x: worm[0].x, y: worm[0].y };
 
     switch (direction) {
@@ -200,23 +268,31 @@ function update() {
         case 'right': head.x++; break;
     }
 
-    // 2. Controlla i bordi (Teletrasporto)
+    // 4. Controlla i bordi (Teletrasporto)
     if (head.x < 0) head.x = (canvas.width / gridSize) - 1;
     if (head.x >= (canvas.width / gridSize)) head.x = 0;
     if (head.y < 0) head.y = (canvas.height / gridSize) - 1;
     if (head.y >= (canvas.height / gridSize)) head.y = 0;
 
-    // 3. Controlla collisione con gli ASTEROIDI
+    // 5. Controlla collisione con gli ASTEROIDI (Logica Scudo)
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
-            gameOver = true;
+            if (!isShieldActive) { // Game Over solo se lo scudo NON è attivo
+                gameOver = true;
+            } else {
+                 // Scudo attivo: distrugge l'asteroide
+                 asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
+                 break; // Esce dal loop dopo aver distrutto l'asteroide
+            }
         }
     }
 
-    // 4. Controlla collisione con se stesso
+    // 6. Controlla collisione con se stesso (Logica Scudo)
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
-            gameOver = true;
+            if (!isShieldActive) { // Game Over solo se lo scudo NON è attivo
+                gameOver = true;
+            }
         }
     }
 
@@ -231,7 +307,6 @@ function update() {
             isNewRecord = true;
         }
 
-        // Aggiorna e mostra la schermata di Game Over
         finalScoreElement.textContent = score;
         
         if (isNewRecord) {
@@ -245,27 +320,36 @@ function update() {
     }
     // -------------------------
 
+    // 7. Controlla raccolta Power-up (NUOVA LOGICA)
+    if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
+        if (powerUp.type === 'shield') {
+            isShieldActive = true;
+            shieldTimer = SHIELD_DURATION;
+            powerUp = null; // Rimuove il power-up raccolto
+            console.log("Scudo Energetico Attivato!");
+        }
+    }
+
     worm.unshift(head); // Aggiungi la nuova testa
 
-    // 5. Controlla se il verme ha mangiato il cibo
+    // 8. Controlla se il verme ha mangiato il cibo
     if (head.x === food.x && head.y === food.y) {
         score++;
         generateFood(); // Genera nuovo cibo
+        
+        maybeGeneratePowerUp(); // Tenta di generare un power-up
 
         // LOGICA DI VELOCITÀ ADATTIVA
         if (score % speedThreshold === 0) {
-            if (gameSpeed > 50) { // Limite di velocità minima (massima velocità)
+            if (gameSpeed > 50) {
                 gameSpeed -= speedDecrease;
-                
-                // Riavvia il timer con la nuova velocità
                 clearInterval(gameInterval);
                 gameInterval = setInterval(update, gameSpeed);
             }
         }
-        // FINE LOGICA DI VELOCITÀ ADATTIVA
 
     } else {
-        worm.pop(); // Rimuovi la coda se non ha mangiato (mantiene la lunghezza)
+        worm.pop(); // Rimuovi la coda se non ha mangiato
     }
 
     draw();
@@ -357,16 +441,21 @@ function initGame() {
     gameOver = false;
     clearInterval(gameInterval); // Resetta qualsiasi timer attivo
 
-    // 4. Genera il cibo (deve avvenire prima degli asteroidi per evitare sovrapposizioni)
+    // 4. Resetta le variabili del Power-up (NUOVA LOGICA)
+    powerUp = null;
+    isShieldActive = false;
+    shieldTimer = 0;
+
+    // 5. Genera il cibo (deve avvenire prima degli asteroidi per evitare sovrapposizioni)
     generateFood(); 
 
-    // 5. Genera gli asteroidi
-    generateAsteroids(5); // Genera 5 asteroidi
+    // 6. Genera gli asteroidi
+    generateAsteroids(5); 
 
-    // NUOVO: 6. Genera lo sfondo animato
+    // 7. Genera lo sfondo animato
     generateStars(); 
 
-    // 7. Disegna la scena iniziale e avvia il ciclo di gioco
+    // 8. Disegna la scena iniziale e avvia il ciclo di gioco
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
