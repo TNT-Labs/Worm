@@ -14,12 +14,20 @@
 <body>
     <h1>Worm Day</h1>
     <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <div id="gameOverScreen" class="hidden">
+        <h2>GAME OVER nello Spazio!</h2>
+        <p>Punteggio finale: <span id="finalScore">0</span></p>
+        <p>Record: <span id="highScoreDisplay">0</span></p>
+        <button id="restartButton">Ricomincia</button>
+    </div>
     <div id="controls">
         <button id="up">Su</button>
         <button id="left">Sinistra</button>
         <button id="right">Destra</button>
         <button id="down">Giù</button>
     </div>
+    
     <script src="script.js"></script>
     <script>
         // Registra il Service Worker
