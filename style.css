@@ -8,6 +8,7 @@ body {
     color: #e0e0e0;
     font-family: sans-serif;
     margin: 0;
+    position: relative; /* Necessario per il posizionamento assoluto della schermata di Game Over */
 }
 
 h1 {
@@ -36,6 +37,61 @@ canvas {
     font-size: 1em;
 }
 #controls button:hover {
+    background-color: #0077cc;
+}
+
+/* --- STILI PER LA SCHERMATA DI GAME OVER (NUOVI) --- */
+
+/* Stile per la schermata di Game Over */
+#gameOverScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(10, 0, 75, 0.95); /* Blu spaziale scuro semi-trasparente */
+    color: white;
+    padding: 40px;
+    border: 3px solid #00eaff;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 10;
+    box-shadow: 0 0 30px #00eaff;
+}
+
+/* Classe per nascondere la schermata */
+.hidden {
+    display: none;
+}
+
+#gameOverScreen h2 {
+    color: #ffcc00; /* Giallo brillante per l'intestazione */
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+#gameOverScreen p {
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+#gameOverScreen span {
+    font-weight: bold;
+    color: #00eaff;
+}
+
+#restartButton {
+    background-color: #00aaff;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    margin-top: 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: background-color 0.3s;
+}
+
+#restartButton:hover {
     background-color: #0077cc;
 }
 
