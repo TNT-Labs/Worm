@@ -62,13 +62,13 @@ function generateFood() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Cancella tutto
 
-    // Disegna il cibo (un piccolo asteroide o stella)
+    // 1. Disegna il Cibo (un piccolo asteroide o stella)
     ctx.fillStyle = 'yellow';
     ctx.beginPath();
     ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
     ctx.fill();
 
-    // NUOVO: Disegna gli Asteroidi
+    // 2. Disegna gli Asteroidi Fissi
     ctx.fillStyle = '#666666'; // Grigio scuro per l'asteroide
     ctx.strokeStyle = '#444444'; 
     for (let asteroid of asteroids) {
@@ -76,23 +76,63 @@ function draw() {
         ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
     }
     
-    // Disegna il verme
-    for (let i = 0; i < worm.length; i++) {
-        ctx.fillStyle = (i === 0) ? '#00eaff' : '#00aaff'; // Testa celeste, corpo azzurro
+    // 3. DISEGNO DEL VERME
+    
+    // Disegna il CORPO del verme (dal secondo segmento in poi)
+    ctx.fillStyle = '#00aaff'; // Corpo azzurro
+    ctx.strokeStyle = '#006699'; // Bordo più scuro
+
+    for (let i = 1; i < worm.length; i++) {
         ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
-        ctx.strokeStyle = '#006699'; // Bordo più scuro
         ctx.strokeRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
     }
 
-    // Disegna il punteggio CORRENTE (in alto a sinistra)
+    // Disegna la TESTA DISTINTIVA (indice 0)
+    const head = worm[0];
+    const headX = head.x * gridSize;
+    const headY = head.y * gridSize;
+
+    // Disegna il blocco base della testa (più brillante)
+    ctx.fillStyle = '#00eaff'; // Testa celeste
+    ctx.fillRect(headX, headY, gridSize, gridSize);
+    ctx.strokeStyle = '#006699'; 
+    ctx.strokeRect(headX, headY, gridSize, gridSize);
+
+    // Disegna un piccolo Indicatore di direzione (Occhio/Punta) sulla testa
+    ctx.fillStyle = '#ffcc00'; // Giallo brillante
+
+    let indicatorX = headX + gridSize / 2;
+    let indicatorY = headY + gridSize / 2;
+    let indicatorSize = gridSize / 5;
+
+    switch (direction) {
+        case 'up':
+            indicatorY = headY + indicatorSize;
+            break;
+        case 'down':
+            indicatorY = headY + gridSize - indicatorSize;
+            break;
+        case 'left':
+            indicatorX = headX + indicatorSize;
+            break;
+        case 'right':
+            indicatorX = headX + gridSize - indicatorSize;
+            break;
+    }
+
+    // Disegna il cerchio indicatore
+    ctx.beginPath();
+    ctx.arc(indicatorX, indicatorY, indicatorSize, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // 4. Disegna il Punteggio CORRENTE (in alto a sinistra)
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText('Punti: ' + score, 10, 30);
 
-    // Disegna l'High Score (in alto a destra)
+    // 5. Disegna l'High Score (in alto a destra)
     const highScoreText = 'Record: ' + highScore;
     const textWidth = ctx.measureText(highScoreText).width;
-    // Posizionamento basato sulla larghezza del testo
     ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30);
 }
 
