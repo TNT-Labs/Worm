@@ -10,6 +10,13 @@ let gameOver = false;
 let gameInterval;
 const gameSpeed = 150; // Millisecondi tra un aggiornamento e l'altro
 
+// NUOVA VARIABILE GLOBALE PER L'HIGH SCORE
+let highScore = 0;
+
+// CHIAVE DI ARCHIVIAZIONE
+const HIGH_SCORE_KEY = 'wormDayHighScore'; 
+
+// Usiamo una costante per la chiave per evitare errori di battitura
 function generateFood() {
     food = {
         x: Math.floor(Math.random() * (canvas.width / gridSize)),
@@ -24,26 +31,24 @@ function generateFood() {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Cancella tutto
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
-    // Disegna il cibo (un piccolo asteroide o stella)
-    ctx.fillStyle = 'yellow';
-    ctx.beginPath();
-    ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
-    ctx.fill();
+    // Disegna il cibo... (nessuna modifica qui)
+    // ...
 
-    // Disegna il verme
-    for (let i = 0; i < worm.length; i++) {
-        ctx.fillStyle = (i === 0) ? '#00eaff' : '#00aaff'; // Testa celeste, corpo azzurro
-        ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
-        ctx.strokeStyle = '#006699'; // Bordo più scuro
-        ctx.strokeRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
-    }
-
-    // Disegna il punteggio
+    // Disegna il verme... (nessuna modifica qui)
+    // ...
+    
+    // Disegna il punteggio CORRENTE (in alto a sinistra)
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
-    ctx.fillText('Punteggio: ' + score, 10, 30);
+    ctx.fillText('Punti: ' + score, 10, 30);
+
+    // NUOVO: Disegna l'High Score (in alto a destra)
+    const highScoreText = 'Record: ' + highScore;
+    const textWidth = ctx.measureText(highScoreText).width;
+    // Posizionamento basato sulla larghezza del testo
+    ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30); 
 }
 
 function update() {
@@ -68,9 +73,21 @@ function update() {
     // Controlla collisione con se stesso
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
+            
+            // --- INIZIO NUOVA LOGICA DI GAME OVER ---
             gameOver = true;
-            alert('Game Over! Punteggio: ' + score);
             clearInterval(gameInterval);
+
+            // Controlla se il punteggio corrente è un nuovo record
+            if (score > highScore) {
+                highScore = score; // Aggiorna la variabile locale
+                saveHighScore(); // Salva in localStorage
+                alert('NUOVO RECORD! Punteggio: ' + score);
+            } else {
+                alert('Game Over! Punteggio: ' + score);
+            }
+            // --- FINE NUOVA LOGICA DI GAME OVER ---
+            
             return;
         }
     }
@@ -116,8 +133,25 @@ function handleButtonClick(newDirection) {
     else if (newDirection === 'right' && direction !== 'left') direction = 'right';
 }
 
+function loadHighScore() {
+    // Tenta di recuperare l'high score da localStorage
+    const storedScore = localStorage.getItem(HIGH_SCORE_KEY);
+    if (storedScore !== null) {
+        // Converte il valore in un numero intero
+        highScore = parseInt(storedScore, 10); 
+    }
+}
+
+function saveHighScore() {
+    // Salva l'high score aggiornato
+    localStorage.setItem(HIGH_SCORE_KEY, highScore);
+}
+
 // Inizializzazione del gioco
 function initGame() {
+    // NUOVO: Carica l'High Score all'avvio
+    loadHighScore(); 
+
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     score = 0;
