@@ -7,8 +7,13 @@ let food = {}; // Posizione del cibo
 let direction = 'right'; // Direzione iniziale del verme
 let score = 0;
 let gameOver = false;
+// Variabile globale per il timer
 let gameInterval;
-const gameSpeed = 150; // Millisecondi tra un aggiornamento e l'altro
+
+// Variabile di VELOCITÀ BASE (in ms - più è alto, più è lento)
+let gameSpeed = 150; 
+const speedDecrease = 5; // Di quanto diminuire la velocità (es. 5ms)
+const speedThreshold = 3; // Ogni quante unità di punteggio aumentare la velocità
 
 // NUOVA VARIABILE GLOBALE PER L'HIGH SCORE
 let highScore = 0;
@@ -98,6 +103,22 @@ function update() {
     if (head.x === food.x && head.y === food.y) {
         score++;
         generateFood(); // Genera nuovo cibo
+
+        // --- INIZIO NUOVA LOGICA DI VELOCITÀ ---
+        // Controlla se è il momento di aumentare la velocità
+        if (score % speedThreshold === 0) {
+            // Assicurati che il gioco non diventi *troppo* veloce
+            if (gameSpeed > 50) { 
+                gameSpeed -= speedDecrease;
+                
+                // Riavvia il timer con la nuova velocità
+                clearInterval(gameInterval);
+                gameInterval = setInterval(update, gameSpeed);
+                
+                console.log("Velocità aumentata a:", gameSpeed); // Utile per il debug
+            }
+        }
+        // --- FINE NUOVA LOGICA DI VELOCITÀ ---
     } else {
         worm.pop(); // Rimuovi la coda se non ha mangiato
     }
@@ -149,8 +170,10 @@ function saveHighScore() {
 
 // Inizializzazione del gioco
 function initGame() {
-    // NUOVO: Carica l'High Score all'avvio
     loadHighScore(); 
+
+    // NUOVO: Resetta la velocità all'inizio del gioco
+    gameSpeed = 150; // Resetta al valore iniziale
 
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
@@ -159,7 +182,9 @@ function initGame() {
     clearInterval(gameInterval);
     generateFood();
     draw();
-    gameInterval = setInterval(update, gameSpeed);
+    
+    // NUOVO: Usa la velocità di base per il primo avvio
+    gameInterval = setInterval(update, gameSpeed); 
 }
 
 // Event Listeners
