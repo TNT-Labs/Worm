@@ -20,6 +20,10 @@ let powerUp = null; // Posizione del power-up {x, y, type}
 let isShieldActive = false;
 let shieldTimer = 0;
 const SHIELD_DURATION = 50; // Durata dello scudo (in cicli di update)
+// NUOVE VARIABILI E COSTANTI PER I LIVELLI
+let currentLevel = 1;
+const SCORE_TO_NEXT_LEVEL = 10;
+const ASTEROIDS_PER_LEVEL = 2; // Asteroidi aggiunti per ogni livello
 let direction = 'right'; // Direzione iniziale del verme
 let score = 0;
 let gameOver = false;
@@ -47,6 +51,15 @@ function loadHighScore() {
         // Converte il valore in un numero intero
         highScore = parseInt(storedScore, 10);
     }
+}
+
+// NUOVA FUNZIONE PER CALCOLARE GLI ASTEROIDI
+function calculateAsteroidCount() {
+    // Il livello 1 inizia con un numero base di asteroidi (es. 5)
+    const baseAsteroids = 5; 
+    
+    // Aggiungi un numero di asteroidi proporzionale al livello
+    return baseAsteroids + (currentLevel - 1) * ASTEROIDS_PER_LEVEL;
 }
 
 function saveHighScore() {
@@ -235,8 +248,7 @@ function update() {
     if (isShieldActive) {
         shieldTimer--;
         if (shieldTimer <= 0) {
-            isShieldActive = false; // Scudo disattivato
-            console.log("Scudo disattivato."); 
+            isShieldActive = false;
         }
     }
     
@@ -277,12 +289,11 @@ function update() {
     // 5. Controlla collisione con gli ASTEROIDI (Logica Scudo)
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
-            if (!isShieldActive) { // Game Over solo se lo scudo NON è attivo
+            if (!isShieldActive) {
                 gameOver = true;
             } else {
-                 // Scudo attivo: distrugge l'asteroide
                  asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
-                 break; // Esce dal loop dopo aver distrutto l'asteroide
+                 break;
             }
         }
     }
@@ -290,7 +301,7 @@ function update() {
     // 6. Controlla collisione con se stesso (Logica Scudo)
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
-            if (!isShieldActive) { // Game Over solo se lo scudo NON è attivo
+            if (!isShieldActive) {
                 gameOver = true;
             }
         }
@@ -320,13 +331,12 @@ function update() {
     }
     // -------------------------
 
-    // 7. Controlla raccolta Power-up (NUOVA LOGICA)
+    // 7. Controlla raccolta Power-up
     if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
         if (powerUp.type === 'shield') {
             isShieldActive = true;
             shieldTimer = SHIELD_DURATION;
-            powerUp = null; // Rimuove il power-up raccolto
-            console.log("Scudo Energetico Attivato!");
+            powerUp = null;
         }
     }
 
@@ -335,11 +345,25 @@ function update() {
     // 8. Controlla se il verme ha mangiato il cibo
     if (head.x === food.x && head.y === food.y) {
         score++;
-        generateFood(); // Genera nuovo cibo
         
+        // NUOVO: CONTROLLO AVANZAMENTO LIVELLO
+        if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
+            currentLevel++;
+            // Avvisa il giocatore (opzionale)
+            alert(`Livello ${currentLevel} raggiunto! Nuovi pericoli ti aspettano!`);
+            
+            // Riavvia il gioco per applicare il nuovo livello
+            // Si noti che questo chiama initGame() ma NON resetta lo score o l'High Score.
+            // Utilizziamo una funzione di riavvio parziale per mantenere il punteggio.
+            partialGameRestart();
+            return; 
+        }
+        // FINE CONTROLLO AVANZAMENTO LIVELLO
+
+        generateFood(); // Genera nuovo cibo
         maybeGeneratePowerUp(); // Tenta di generare un power-up
 
-        // LOGICA DI VELOCITÀ ADATTIVA
+        // LOGICA DI VELOCITÀ ADATTIVA (Qui la velocità continua ad aumentare)
         if (score % speedThreshold === 0) {
             if (gameSpeed > 50) {
                 gameSpeed -= speedDecrease;
@@ -353,6 +377,28 @@ function update() {
     }
 
     draw();
+}
+
+// NUOVA FUNZIONE PER IL PASSAGGIO DI LIVELLO
+function partialGameRestart() {
+    // Mantieni il punteggio e il livello
+    gameOver = false;
+    clearInterval(gameInterval);
+
+    // Resetta solo gli elementi di gioco
+    worm = [{ x: 10, y: 10 }];
+    direction = 'right';
+    powerUp = null; // Rimuove qualsiasi power-up attivo
+
+    // Rigenera la scena con le nuove regole del livello
+    generateFood(); 
+    generateAsteroids(calculateAsteroidCount()); // Usa la nuova funzione per il conteggio
+    
+    // Non c'è bisogno di rigenerare le stelle, si muovono da sole.
+
+    draw();
+    // Riavvia il timer con la velocità corrente (già aumentata in update())
+    gameInterval = setInterval(update, gameSpeed); 
 }
 
 function handleKeyPress(event) {
@@ -426,36 +472,32 @@ function handleSwipe(event) {
 }
 
 // Inizializzazione del gioco
-// Inizializzazione del gioco
 function initGame() {
     // 1. Carica l'High Score salvato
     loadHighScore(); 
 
-    // 2. Resetta la velocità al valore di base
+    // 2. Resetta le variabili principali
+    currentLevel = 1; // NUOVO: Inizializza il livello
     gameSpeed = initialGameSpeed; 
-
-    // 3. Resetta lo stato del verme e del gioco
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     score = 0;
     gameOver = false;
-    clearInterval(gameInterval); // Resetta qualsiasi timer attivo
+    clearInterval(gameInterval);
 
-    // 4. Resetta le variabili del Power-up (NUOVA LOGICA)
+    // 3. Resetta le variabili del Power-up
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
 
-    // 5. Genera il cibo (deve avvenire prima degli asteroidi per evitare sovrapposizioni)
+    // 4. Genera gli elementi di gioco
     generateFood(); 
+    generateAsteroids(calculateAsteroidCount()); // USA LA NUOVA FUNZIONE PER IL CONTEGGIO
 
-    // 6. Genera gli asteroidi
-    generateAsteroids(5); 
-
-    // 7. Genera lo sfondo animato
+    // 5. Genera lo sfondo animato
     generateStars(); 
 
-    // 8. Disegna la scena iniziale e avvia il ciclo di gioco
+    // 6. Disegna la scena iniziale e avvia il ciclo di gioco
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
