@@ -23,7 +23,7 @@ canvas {
 
 #controls {
     margin-top: 20px;
-    display: none; /* Nascondi di default, mostra solo su touch screen se necessario */
+    display: none; /* Mantienilo nascosto, lo swipe è il metodo principale */
 }
 
 #controls button {
