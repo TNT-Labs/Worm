@@ -46,10 +46,10 @@ const SHIELD_DURATION = 50;
 // VARIABILI E COSTANTI PER I LIVELLI
 let currentLevel = 1;
 const SCORE_TO_NEXT_LEVEL = 10;
-const ASTEROIDS_PER_LEVEL = 2; // BUG FIX: Aggiunto
+const ASTEROIDS_PER_LEVEL = 2;
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI UTILITÀ (CARICAMENTO, SALVATAGGIO, GENERAZIONE CASUALE)
+// FUNZIONI DI UTILITÀ (CARICAMENTO, SALVATAGGIO, GENERAZIONE SICURA)
 // ----------------------------------------------------------------------
 
 function loadHighScore() {
@@ -63,8 +63,11 @@ function saveHighScore() {
     localStorage.setItem(HIGH_SCORE_KEY, highScore);
 }
 
-// BUG FIX: FUNZIONE AGGIUNTA per trovare una posizione non occupata
-function generateRandomSafePosition() {
+/**
+ * Genera una posizione casuale garantendo che non sia su verme, asteroidi, cibo o power-up.
+ * @param {Array<Object>} ignoreList - Lista di oggetti ({x, y}) da ignorare temporaneamente.
+ */
+function generateRandomSafePosition(ignoreList = []) {
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
     let safePos = {};
@@ -78,21 +81,26 @@ function generateRandomSafePosition() {
 
         collision = false;
         
-        // Controlla collisione con Verme, Cibo, Asteroidi e Power-up
+        // 1. Controlla collisione con il Verme (Corpo e Testa)
         for (let segment of worm) {
             if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
         }
-        if (safePos.x === food.x && safePos.y === food.y) collision = true;
+
+        // 2. Controlla collisione con gli Asteroidi
         for (let asteroid of asteroids) {
             if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
         }
-        if (powerUp && safePos.x === powerUp.x && safePos.y === powerUp.y) collision = true;
+
+        // 3. Controlla collisione con elementi nella lista di ignore
+        for (let item of ignoreList) {
+             if (item && item.x === safePos.x && item.y === safePos.y) collision = true;
+        }
     }
     return safePos;
 }
 
 function generateFood() {
-    food = generateRandomSafePosition();
+    food = generateRandomSafePosition(powerUp ? [powerUp] : []);
 }
 
 function calculateAsteroidCount() {
@@ -103,7 +111,8 @@ function calculateAsteroidCount() {
 function generateAsteroids(count) {
     asteroids = [];
     for (let i = 0; i < count; i++) {
-        asteroids.push(generateRandomSafePosition());
+        // Ignora cibo e powerUp
+        asteroids.push(generateRandomSafePosition([food, powerUp].filter(item => item !== null)));
     }
 }
 
@@ -124,7 +133,7 @@ function generateStars() {
 
 function maybeGeneratePowerUp() {
     if (Math.random() < 0.03 && powerUp === null) { 
-        powerUp = generateRandomSafePosition();
+        powerUp = generateRandomSafePosition([food]);
         powerUp.type = 'shield';
     }
 }
@@ -168,10 +177,9 @@ function draw() {
     
     // 5. DISEGNO DEL VERME
     
-    // Disegna il CORPO del verme (dal secondo segmento in poi)
+    // Disegna il CORPO del verme
     ctx.fillStyle = '#00aaff';
     ctx.strokeStyle = '#006699';
-
     for (let i = 1; i < worm.length; i++) {
         ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
         ctx.strokeRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
@@ -307,7 +315,7 @@ function update() {
         }
     }
 
-    // --- GESTIONE GAME OVER (attivato da asteroidi o coda) ---
+    // --- GESTIONE GAME OVER ---
     if (gameOver) {
         clearInterval(gameInterval);
 
@@ -361,6 +369,9 @@ function update() {
         if (score % speedThreshold === 0) {
             if (gameSpeed > 50) {
                 gameSpeed -= speedDecrease;
+                // Controllo di sicurezza: non scendere sotto i 50ms
+                if (gameSpeed < 50) gameSpeed = 50; 
+                
                 clearInterval(gameInterval);
                 gameInterval = setInterval(update, gameSpeed);
             }
@@ -381,7 +392,6 @@ function partialGameRestart() {
     gameOver = false;
     clearInterval(gameInterval);
 
-    // Resetta elementi di gioco, ma mantiene score e level
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     powerUp = null;
@@ -487,19 +497,16 @@ function handleSwipe(event) {
 
 document.addEventListener('keydown', handleKeyPress);
 
-// Pulsanti virtuali
 document.getElementById('up').addEventListener('click', () => handleButtonClick('up'));
 document.getElementById('down').addEventListener('click', () => handleButtonClick('down'));
 document.getElementById('left').addEventListener('click', () => handleButtonClick('left'));
 document.getElementById('right').addEventListener('click', () => handleButtonClick('right'));
 
-// Pulsante Ricomincia
 restartButton.addEventListener('click', () => {
     gameOverScreen.classList.add('hidden');
     initGame();
 });
 
-// Event Listeners per lo Swipe sul Canvas
 canvas.addEventListener('touchstart', event => {
     if (gameOver) return;
     touchStartX = event.touches[0].clientX;
@@ -508,7 +515,6 @@ canvas.addEventListener('touchstart', event => {
 }, { passive: false }); 
 
 canvas.addEventListener('touchmove', event => {
-    // BUG FIX: Evita scorrimento della pagina durante il tocco (necessario per iOS/Android)
     if (!gameOver) event.preventDefault(); 
 }, { passive: false });
 
