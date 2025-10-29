@@ -1,68 +1,55 @@
 # 🪐 Worm Day: The Space Snake PWA
 
-**Worm Day** è una Progressive Web App (PWA) ispirata al classico gioco Snake, ma ambientata nello spazio. Guida il tuo verme spaziale attraverso il cosmo, fallo crescere mangiando stelle e fai attenzione a non toccare la tua coda!
+**Worm Day** è una Progressive Web App (PWA) ispirata al classico gioco Snake, ambientata in un cosmo pieno di pericoli. Guida il tuo verme spaziale, fallo crescere mangiando cibo, raccogli power-up e cerca di avanzare nei livelli evitando gli asteroidi e la tua coda.
 
-Questo progetto è sviluppato in HTML, CSS e JavaScript puro, e utilizza i Service Worker per garantire l'installazione e il funzionamento offline.
+Il progetto è sviluppato in HTML, CSS e JavaScript puro ed è ottimizzato per dispositivi mobili.
 
 ## ✨ Caratteristiche Implementate
 
 * **Progressive Web App (PWA):** Installabile su dispositivi mobili e desktop.
-* **Funzionamento Offline:** Grazie al Service Worker, il gioco è completamente utilizzabile anche senza connessione internet.
-* **High Score Locale:** Il punteggio più alto viene salvato nel browser utilizzando `localStorage`.
-* **Velocità Adattiva:** Il gioco accelera progressivamente man mano che il punteggio aumenta, aumentando la difficoltà.
-* **Gestione Game Over:** Schermata modale personalizzata e non bloccante per la fine del gioco e il riavvio.
-* **Controlli:** Supporto per tastiera (frecce) e pulsanti virtuali per dispositivi mobili.
+* **Funzionamento Offline:** Il gioco è completamente utilizzabile anche senza connessione internet.
+* **Sistema di Livelli:** Avanza di livello (ogni 10 punti) per affrontare un numero crescente di **Asteroidi Fissi**.
+* **Power-up (Scudo Energetico):** Raccogli un raro power-up per ottenere invulnerabilità temporanea a collisioni e asteroidi.
+* **Velocità Adattiva:** Il gioco accelera progressivamente man mano che il punteggio aumenta.
+* **High Score Locale:** Il punteggio più alto viene salvato nel browser (`localStorage`).
+* **Controlli Ottimizzati:** Supporto per tastiera (desktop) e **Controlli tramite Swipe (scorrimento)** per una migliore esperienza mobile.
+* **Grafica Migliorata:**
+    * **Sfondo Animato:** Effetto parallasse con stelle che simulano il movimento nello spazio.
+    * **Testa Distintiva:** Indicatore visivo sulla testa del verme per mostrare la direzione.
+* **Gestione Game Over:** Schermata modale personalizzata e non bloccante.
 
 ## 🛠️ Struttura del Progetto
 
-Il progetto è composto dai seguenti file:
-
 | File | Descrizione |
 | :--- | :--- |
-| `index.html` | La struttura principale della pagina web, contenente il `canvas` e la schermata di Game Over. |
-| `style.css` | Definizioni di stile, inclusi i layout "spaziali" e l'aspetto della schermata modale. |
-| `script.js` | La logica di gioco principale (movimento del verme, collisioni, punteggio, velocità, High Score). |
-| `manifest.json` | Definisce come la PWA appare all'utente (icone, nome, colori del tema, ecc.). **(Non fornito, ma necessario)** |
-| `sw.js` | Il Service Worker che gestisce la cache e il funzionamento offline. **(Non fornito, ma necessario)** |
-| `images/` | Cartella che conterrà le icone della PWA (`icon-192x192.png`, ecc.). |
+| `index.html` | La struttura principale, contenente il `canvas` e la schermata di Game Over. |
+| `style.css` | Definizioni di stile, inclusi gli stili spaziali e l'aspetto della schermata modale. |
+| `script.js` | **Tutta la logica di gioco:** movimento, collisioni, punteggio, livelli, power-up e rendering grafico. |
+| `manifest.json` | Definisce le proprietà di installazione della PWA (icone, nome, colori). |
+| `sw.js` | Il Service Worker che gestisce la cache e il funzionamento offline. |
 
 ## 🚀 Come Eseguire il Gioco
 
-Per eseguire e testare questo progetto, avrai bisogno di un server web locale, poiché i Service Worker e i moduli ES non funzionano correttamente quando si aprono i file direttamente dal disco (`file://`).
+Per eseguire e testare l'installazione PWA e le funzionalità offline, è necessario utilizzare un server web locale.
 
-### Metodo 1: Usando Live Server (VS Code)
+### Metodo Consigliato (VS Code)
 
-1.  Se usi Visual Studio Code, installa l'estensione **Live Server**.
+1.  Installa l'estensione **Live Server** in Visual Studio Code.
 2.  Clicca con il tasto destro su `index.html` e seleziona **"Open with Live Server"**.
-
-### Metodo 2: Usando Python (Comando Rapido)
-
-1.  Apri il tuo terminale o prompt dei comandi.
-2.  Naviga nella cartella radice del progetto.
-3.  Esegui il seguente comando (per Python 3):
-
-    ```bash
-    python -m http.server
-    ```
-
-4.  Apri il tuo browser all'indirizzo `http://localhost:8000`.
 
 ### Installazione della PWA
 
-Dopo aver aperto il gioco tramite server locale, il tuo browser (es. Chrome, Edge) dovrebbe mostrarti un'icona **di installazione** (spesso un simbolo `+` o una freccia rivolta verso il basso) nella barra degli indirizzi o nel menu, che ti permetterà di installare "Worm Day" come app nativa sul tuo dispositivo.
+Dopo aver aperto il gioco tramite server locale, il tuo browser mostrerà un'opzione (spesso un simbolo `+` o una freccia) nella barra degli indirizzi o nel menu per **installare** "Worm Day" come app nativa.
 
 ## 🕹️ Comandi di Gioco
 
-| Azione | Tasto (Desktop) | Pulsante (Mobile) |
-| :--- | :--- | :--- |
-| Muovi Su | `Freccia Su` (`ArrowUp`) | **Su** |
-| Muovi Giù | `Freccia Giù` (`ArrowDown`) | **Giù** |
-| Muovi Sinistra | `Freccia Sinistra` (`ArrowLeft`) | **Sinistra** |
-| Muovi Destra | `Freccia Destra` (`ArrowRight`) | **Destra** |
+| Azione | Controllo |
+| :--- | :--- |
+| **Muovi Verme** | Tasti freccia (Desktop) |
+| **Muovi Verme** | Scorrimento (**Swipe**) sul canvas (Mobile) |
 
 ## 💡 Prossimi Miglioramenti
 
-* Implementazione dei **Controlli tramite Swipe** (scorrimento) per una migliore usabilità mobile.
-* Aggiunta di **Ostacoli Spaziali Fissi** (Asteroidi) per aumentare la sfida.
-* Miglioramenti grafici come lo **Sfondo Animato** (stelle che si muovono).
-* Integrazione di **Audio ed Effetti Sonori** (SFX) per aumentare l'immersività.
+* Aggiungere **Audio ed Effetti Sonori (SFX)** per interazioni come mangiare, collisioni e raccolta di power-up.
+* Implementare **Più Tipi di Power-up** (es. Iper-velocità, Punti Bonus).
+* Migliorare l'effetto di **Distruzione degli Asteroidi** quando colpiti dallo Scudo Energetico.
