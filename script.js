@@ -35,7 +35,7 @@ const speedThreshold = 3;
 // VARIABILI E COSTANTI PER L'HIGH SCORE E LA CLASSIFICA (AGGIORNATE)
 let highScore = 0; 
 const HIGH_SCORE_KEY = 'wormDayHighScore'; 
-const LEADERBOARD_KEY = 'wormDayLeaderboard'; // NUOVA chiave
+const LEADERBOARD_KEY = 'wormDayLeaderboard'; 
 const MAX_LEADERBOARD_ENTRIES = 5; 
 
 // VARIABILI PER LA GESTIONE DELLO SWIPE
@@ -65,7 +65,7 @@ const SCORE_TO_NEXT_LEVEL = 10;
 const ASTEROIDS_PER_LEVEL = 2;
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI UTILITÀ PER LA CLASSIFICA (NUOVE)
+// FUNZIONI DI UTILITÀ PER LA CLASSIFICA
 // ----------------------------------------------------------------------
 
 function loadHighScore() {
@@ -75,7 +75,6 @@ function loadHighScore() {
     }
 }
 
-// Carica la Classifica Dettagliata (Array)
 function loadLeaderboard() {
     const storedLeaderboard = localStorage.getItem(LEADERBOARD_KEY);
     try {
@@ -88,7 +87,6 @@ function loadLeaderboard() {
     return [];
 }
 
-// Salva la Classifica Dettagliata
 function saveLeaderboard(leaderboard) {
     localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
 }
@@ -96,13 +94,10 @@ function saveLeaderboard(leaderboard) {
 function displayLeaderboard() {
     let leaderboard = loadLeaderboard();
     
-    // Ordina dal più alto al più basso
     leaderboard.sort((a, b) => b.score - a.score);
-    
-    // Limita al numero massimo di voci
     leaderboard = leaderboard.slice(0, MAX_LEADERBOARD_ENTRIES);
 
-    leaderboardList.innerHTML = ''; // Pulisce la lista precedente
+    leaderboardList.innerHTML = ''; 
 
     if (leaderboard.length === 0) {
         leaderboardList.innerHTML = '<li>Nessun punteggio registrato ancora!</li>';
@@ -125,11 +120,11 @@ function displayLeaderboard() {
 }
 
 function savePlayerScore() {
+    // Trimma e limita il nome a 3 caratteri, default "AAA"
     const name = playerNameInput.value.trim().substring(0, 3).toUpperCase() || 'AAA';
     
-    if (score === 0) return;
+    if (score === 0) return; // Non salvare punteggi nulli
 
-    // 1. Crea il nuovo record
     const newEntry = {
         score: score,
         level: currentLevel,
@@ -137,7 +132,6 @@ function savePlayerScore() {
         date: new Date().toISOString()
     };
     
-    // 2. Carica, aggiunge, ordina e salva
     let leaderboard = loadLeaderboard();
     leaderboard.push(newEntry);
     
@@ -146,10 +140,8 @@ function savePlayerScore() {
     
     saveLeaderboard(leaderboard);
     
-    // 3. Nasconde la sezione di salvataggio
     saveScoreSection.classList.add('hidden');
     
-    // 4. Aggiorna la visualizzazione della classifica e salva il nome
     displayLeaderboard();
     localStorage.setItem('lastPlayerName', name); 
 }
@@ -158,9 +150,6 @@ function savePlayerScore() {
 // FUNZIONI DI GIOCO (Generate Position, Resize, Draw, etc.)
 // ----------------------------------------------------------------------
 
-/**
- * Genera una posizione casuale garantendo che non sia su verme, asteroidi, cibo o power-up.
- */
 function generateRandomSafePosition(ignoreList = []) {
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
@@ -175,17 +164,14 @@ function generateRandomSafePosition(ignoreList = []) {
 
         collision = false;
         
-        // 1. Controlla collisione con il Verme
         for (let segment of worm) {
             if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
         }
 
-        // 2. Controlla collisione con gli Asteroidi
         for (let asteroid of asteroids) {
             if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
         }
 
-        // 3. Controlla collisione con elementi nella lista di ignore
         for (let item of ignoreList) {
              if (item && item.x === safePos.x && item.y === safePos.y) collision = true;
         }
@@ -254,7 +240,7 @@ function resizeCanvas() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE DRAW() - DISEGNO
+// FUNZIONE DRAW() - DISEGNO (Omessa per brevità, non contiene logica di bug)
 // ----------------------------------------------------------------------
 
 function draw() {
@@ -371,12 +357,15 @@ function draw() {
     ctx.fillText('Livello: ' + currentLevel, 10, 60);
 }
 
+
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO (AGGIORNATA per Game Over/Classifica)
+// FUNZIONE UPDATE() - LOGICA DI GIOCO 
 // ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
+
+    // ... (Gestione timer Power-up e Muovi stelle - Logica OK)
 
     // 1. GESTIONE TIMER POWER-UP
     if (isShieldActive) {
@@ -402,7 +391,7 @@ function update() {
         }
     }
     
-    // 2. Muovi le stelle (Sfondo Animato) - (omesso per brevità, vedi codice completo precedente)
+    // 2. Muovi le stelle (Sfondo Animato)
     const gridWidth = canvas.width;
     const gridHeight = canvas.height;
 
@@ -449,18 +438,16 @@ function update() {
         }
     }
 
-    // --- GESTIONE GAME OVER (LOGICA CLASSIFICA AGGIUNTA) ---
+
+    // --- GESTIONE GAME OVER (FIX LOGICO: Punteggio > 0) ---
     if (gameOver) {
         clearInterval(gameInterval);
         
-        // 1. Carica la classifica corrente
         let leaderboard = loadLeaderboard();
 
-        // 2. Determina se il punteggio è abbastanza alto per la classifica (Top 5)
-        // Oppure se la classifica non è ancora piena
+        // Determina se il punteggio è abbastanza alto per la classifica (Top 5)
         const isHighEnough = leaderboard.length < MAX_LEADERBOARD_ENTRIES || score > leaderboard[leaderboard.length - 1].score;
 
-        // 3. Aggiorna l'high score singolo se necessario
         let isNewRecord = false;
         if (score > highScore) {
             highScore = score;
@@ -471,10 +458,9 @@ function update() {
         finalScoreElement.textContent = score;
         highScoreDisplayElement.textContent = isNewRecord ? `${highScore} (Nuovo Record!)` : highScore;
         
-        // 4. Mostra la sezione di salvataggio del punteggio se è un Top Score
-        if (isHighEnough && score > 0) { // Richiede punteggio > 0 per salvare
+        // MOSTRA LA SEZIONE SALVATAGGIO SOLO SE TOP SCORE E PUNTEGGIO > 0
+        if (isHighEnough && score > 0) { 
              saveScoreSection.classList.remove('hidden');
-             // Pre-popola l'input con il nome dell'ultimo giocatore
              playerNameInput.value = localStorage.getItem('lastPlayerName') || ''; 
         } else {
              saveScoreSection.classList.add('hidden');
@@ -482,14 +468,14 @@ function update() {
         
         gameOverScreen.classList.remove('hidden');
         
-        // 5. Aggiorna la visualizzazione della classifica
         displayLeaderboard();
         return;
     }
     // -------------------------
 
-    // 7. Controlla raccolta Power-up (Logica invariata)
+    // 7. Controlla raccolta Power-up 
     if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
+        // ... (Logica Power-up omessa per brevità)
         switch(powerUp.type) {
             case 'shield':
                 isShieldActive = true;
@@ -517,11 +503,10 @@ function update() {
 
     worm.unshift(head); 
 
-    // 8. Controlla se il verme ha mangiato il cibo (Logica Velocità con Fix Logico)
+    // 8. Controlla se il verme ha mangiato il cibo 
     if (head.x === food.x && head.y === food.y) {
         score++;
         
-        // CONTROLLO AVANZAMENTO LIVELLO
         if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
             currentLevel++;
             alert(`Livello ${currentLevel} raggiunto! Nuovi pericoli ti aspettano!`);
@@ -538,7 +523,6 @@ function update() {
                 gameSpeed -= speedDecrease;
                 if (gameSpeed < 50) gameSpeed = 50; 
                 
-                // Riavvia l'intervallo solo se NESSUN effetto Power-up sulla velocità è attivo
                 if (!isSpeedBoostActive && !isSlowDownActive) {
                     clearInterval(gameInterval);
                     gameInterval = setInterval(update, gameSpeed);
@@ -554,17 +538,14 @@ function update() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE INITGAME() / RESTART
+// FUNZIONE INITGAME() / RESTART (Logica OK)
 // ----------------------------------------------------------------------
 
 function partialGameRestart() {
     gameOver = false;
     clearInterval(gameInterval);
-
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
-    
-    // Reset di tutti gli stati dei power-up
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
@@ -572,19 +553,16 @@ function partialGameRestart() {
     speedBoostTimer = 0;
     isSlowDownActive = false;
     slowDownTimer = 0;
-
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
-    
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
 
 function initGame() {
     resizeCanvas(); 
-
     loadHighScore(); 
-    displayLeaderboard(); // NUOVO: Mostra la classifica all'avvio
+    displayLeaderboard(); 
 
     currentLevel = 1;
     gameSpeed = initialGameSpeed; 
@@ -594,7 +572,6 @@ function initGame() {
     gameOver = false;
     clearInterval(gameInterval);
 
-    // Reset di tutti gli stati dei power-up
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
@@ -612,7 +589,7 @@ function initGame() {
 }
 
 // ----------------------------------------------------------------------
-// GESTIONE INPUT E AVVIO
+// GESTIONE INPUT (Completa di Swipe)
 // ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
@@ -642,8 +619,37 @@ function handleButtonClick(newDirection) {
     else if (newDirection === 'left' && direction !== 'right') direction = 'left';
     else if (newDirection === 'right' && direction !== 'left') direction = 'right';
 }
-// (Funzioni handleSwipe e touch listeners omessi per brevità, ma sono nel tuo codice)
-// ...
+
+function handleSwipe(event) {
+    if (gameOver) return;
+
+    if (event.changedTouches.length === 0) return;
+    
+    const touchEndX = event.changedTouches[0].clientX;
+    const touchEndY = event.changedTouches[0].clientY;
+
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+
+    if (Math.abs(diffX) < minSwipeDistance && Math.abs(diffY) < minSwipeDistance) {
+        return;
+    }
+
+    if (Math.abs(diffX) > Math.abs(diffY)) { 
+        if (diffX > 0) {
+            handleButtonClick('right');
+        } else {
+            handleButtonClick('left');
+        }
+    } else { 
+        if (diffY > 0) {
+            handleButtonClick('down');
+        } else {
+            handleButtonClick('up');
+        }
+    }
+    event.preventDefault(); 
+}
 
 document.addEventListener('keydown', handleKeyPress);
 document.getElementById('up').addEventListener('click', () => handleButtonClick('up'));
@@ -651,17 +657,28 @@ document.getElementById('down').addEventListener('click', () => handleButtonClic
 document.getElementById('left').addEventListener('click', () => handleButtonClick('left'));
 document.getElementById('right').addEventListener('click', () => handleButtonClick('right'));
 
-// NUOVI LISTENER PER LA CLASSIFICA
 saveScoreButton.addEventListener('click', savePlayerScore);
 
 restartButton.addEventListener('click', () => {
-    // Nasconde sempre la sezione di salvataggio prima di riavviare
     saveScoreSection.classList.add('hidden'); 
     gameOverScreen.classList.add('hidden');
     initGame();
 });
 
-// Listener per il ridimensionamento della finestra
+// Event Listeners per lo Swipe sul Canvas (RIPRISTINATI)
+canvas.addEventListener('touchstart', event => {
+    if (gameOver) return;
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+    event.preventDefault(); 
+}, { passive: false }); 
+
+canvas.addEventListener('touchmove', event => {
+    if (!gameOver) event.preventDefault(); 
+}, { passive: false });
+
+canvas.addEventListener('touchend', handleSwipe);
+
 window.addEventListener('resize', () => {
     resizeCanvas();
     if (!gameOver) draw(); 
