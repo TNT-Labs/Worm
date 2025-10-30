@@ -288,7 +288,7 @@ function draw() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO (AGGIORNATA per i nuovi Power-up)
+// FUNZIONE UPDATE() - LOGICA DI GIOCO (AGGIORNATA per Power-up e Fix Velocità)
 // ----------------------------------------------------------------------
 
 function update() {
@@ -307,7 +307,7 @@ function update() {
         speedBoostTimer--;
         if (speedBoostTimer <= 0) {
             isSpeedBoostActive = false;
-            // Ripristina la velocità standard
+            // Ripristina la velocità standard (adattiva)
             clearInterval(gameInterval);
             gameInterval = setInterval(update, gameSpeed);
         }
@@ -318,7 +318,7 @@ function update() {
         slowDownTimer--;
         if (slowDownTimer <= 0) {
             isSlowDownActive = false;
-            // Ripristina la velocità standard
+            // Ripristina la velocità standard (adattiva)
             clearInterval(gameInterval);
             gameInterval = setInterval(update, gameSpeed);
         }
@@ -463,7 +463,7 @@ function update() {
                 gameSpeed -= speedDecrease;
                 if (gameSpeed < 50) gameSpeed = 50; 
                 
-                // Riavvia l'intervallo solo se NON è attivo un effetto speed/slow
+                // FIX LOGICO: Riavvia l'intervallo solo se NESSUN effetto Power-up sulla velocità è attivo
                 if (!isSpeedBoostActive && !isSlowDownActive) {
                     clearInterval(gameInterval);
                     gameInterval = setInterval(update, gameSpeed);
