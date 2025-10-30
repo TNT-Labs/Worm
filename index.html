@@ -2,44 +2,48 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Worm Day</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>Worm Day: The Space Snake PWA</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="images/icon-192x192.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="Worm Day">
+    <link rel="icon" type="image/png" href="path/to/icon.png"> 
 </head>
 <body>
-    <h1>Worm Day</h1>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-
-    <div id="gameOverScreen" class="hidden">
-        <h2>GAME OVER nello Spazio!</h2>
-        <p>Punteggio finale: <span id="finalScore">0</span></p>
-        <p>Record: <span id="highScoreDisplay">0</span></p>
-        <button id="restartButton">Ricomincia</button>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        
+        <div id="gameOverScreen" class="hidden">
+            <h2>Game Over!</h2>
+            <p>Punti finali: <span id="finalScore">0</span></p>
+            <p>Record: <span id="highScoreDisplay">0</span></p>
+            <button id="restartButton">Ricomincia</button>
+        </div>
     </div>
+
     <div id="controls">
-        <button id="up">Su</button>
-        <button id="left">Sinistra</button>
-        <button id="right">Destra</button>
-        <button id="down">Giù</button>
+        <div class="row">
+            <button id="up">⬆️</button>
+        </div>
+        <div class="row">
+            <button id="left">⬅️</button>
+            <button id="right">➡️</button>
+        </div>
+        <div class="row">
+            <button id="down">⬇️</button>
+        </div>
     </div>
     
     <script src="script.js"></script>
     <script>
-        // Registra il Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('Service Worker registrato con successo:', registration);
-                    })
-                    .catch(error => {
-                        console.log('Registrazione Service Worker fallita:', error);
-                    });
+                navigator.serviceWorker.register('sw.js').then(registration => {
+                    console.log('SW registrato:', registration);
+                }, err => {
+                    console.log('Registrazione SW fallita:', err);
+                });
             });
         }
     </script>
