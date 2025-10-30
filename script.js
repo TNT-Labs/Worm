@@ -18,12 +18,14 @@ let gridSize = 20;
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
 let direction = 'right'; 
+let **directionChanged** = false; // NUOVO: Flag per bloccare l'input rapido
 let score = 0;
 let gameOver = false;
 
 // VARIABILI PER GLI ELEMENTI DI GIOCO
 let asteroids = []; // Fissi
 let meteors = [];   // Mobili 
+let particles = []; // Particelle per effetti visivi
 let stars = []; 
 
 // VARIABILI PER LA VELOCITÀ E IL TIMER
@@ -146,7 +148,7 @@ function savePlayerScore() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI GENERAZIONE (Migliorata: controllo meteore)
+// FUNZIONI GENERAZIONE OGGETTI (Invariate)
 // ----------------------------------------------------------------------
 
 function generateRandomSafePosition(ignoreList = []) {
@@ -173,7 +175,7 @@ function generateRandomSafePosition(ignoreList = []) {
             if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
         }
         
-        // 3. Controlla collisione con le Meteore (MIGLIORAMENTO ROBUSTEZZA)
+        // 3. Controlla collisione con le Meteore
         for (let meteor of meteors) {
              if (Math.floor(meteor.x) === safePos.x && Math.floor(meteor.y) === safePos.y) collision = true;
         }
@@ -209,23 +211,22 @@ function generateMeteor() {
     
     let meteor = {};
 
-    // Definisce posizione iniziale e movimento
-    if (entrySide === 0) { // Entra dall'alto
+    if (entrySide === 0) { 
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = -1; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = Math.random() * 0.1 + 0.1; 
-    } else if (entrySide === 1) { // Entra dal basso
+    } else if (entrySide === 1) { 
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = gridHeight; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = -(Math.random() * 0.1 + 0.1); 
-    } else if (entrySide === 2) { // Entra da sinistra
+    } else if (entrySide === 2) { 
         meteor.x = -1; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = Math.random() * 0.1 + 0.1; 
         meteor.dy = Math.random() * 0.2 - 0.1;
-    } else { // Entra da destra
+    } else { 
         meteor.x = gridWidth; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = -(Math.random() * 0.1 + 0.1); 
@@ -268,6 +269,27 @@ function generateStars() {
             size: Math.random() * 2 + 0.5,
             speed: Math.random() * 0.1 + 0.05
         });
+    }
+}
+
+// ----------------------------------------------------------------------
+// FUNZIONI PARTICELLE (Invariate)
+// ----------------------------------------------------------------------
+
+function createParticles(x, y, count, color, type) {
+    for (let i = 0; i < count; i++) {
+        const particle = {
+            x: x + 0.5, 
+            y: y + 0.5,
+            color: color,
+            dx: (Math.random() - 0.5) * (type === 'explosion' ? 0.3 : 0.6), 
+            dy: (Math.random() - 0.5) * (type === 'explosion' ? 0.3 : 0.6),
+            size: Math.random() * 3 + 1, 
+            life: type === 'explosion' ? 60 : 30, 
+            originalLife: type === 'explosion' ? 60 : 30,
+            type: type 
+        };
+        particles.push(particle);
     }
 }
 
@@ -329,7 +351,7 @@ function draw() {
         ctx.strokeRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
     }
     
-    // 6. DISEGNO DEL VERME (Invariato)
+    // 6. DISEGNO DEL VERME
     
     // Disegna il CORPO del verme
     ctx.fillStyle = '#00aaff';
@@ -386,7 +408,21 @@ function draw() {
         ctx.lineWidth = 1; 
     }
     
-    // 8. Disegna i Punteggi
+    // 8. Disegna le Particelle 
+    for (const p of particles) {
+        const opacity = p.life / p.originalLife; 
+        
+        ctx.fillStyle = `rgba(${p.color}, ${opacity})`;
+
+        const renderX = p.x * gridSize;
+        const renderY = p.y * gridSize;
+
+        ctx.beginPath();
+        ctx.arc(renderX, renderY, p.size / 2, 0, Math.PI * 2); 
+        ctx.fill();
+    }
+    
+    // 9. Disegna i Punteggi
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText('Punti: ' + score, 10, 30);
@@ -395,18 +431,21 @@ function draw() {
     const textWidth = ctx.measureText(highScoreText).width;
     ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30);
     
-    // 9. Disegna Livello
+    // 10. Disegna Livello
     ctx.fillText('Livello: ' + currentLevel, 10, 60);
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO (Migliorata: Pulizia delle variabili)
+// FUNZIONE UPDATE() - LOGICA DI GIOCO (Corretta: Input e Pulizia)
 // ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
+    
+    // CORREZIONE BUG A: Resetta il flag di cambio direzione per il frame corrente
+    directionChanged = false; 
 
-    // 1. GESTIONE TIMER POWER-UP (Invariata)
+    // 1. GESTIONE TIMER POWER-UP
     if (isShieldActive) {
         shieldTimer--;
         if (shieldTimer <= 0) { isShieldActive = false; }
@@ -428,7 +467,24 @@ function update() {
         }
     }
     
-    // Calcola le dimensioni della griglia una sola volta
+    // 1b. Muovi e gestisci la vita delle particelle
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        p.x += p.dx;
+        p.y += p.dy;
+        
+        p.dx *= 0.95;
+        p.dy *= 0.95;
+
+        p.life--;
+
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+
+    // MIGLIORAMENTO C: Calcola le dimensioni della griglia una sola volta
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
 
@@ -448,11 +504,9 @@ function update() {
         m.x += m.dx;
         m.y += m.dy;
         
-        // Rimuovi le meteore fuori dallo schermo (e generane una nuova)
         if (m.x < -1 || m.x > gridWidth + 1 || m.y < -1 || m.y > gridHeight + 1) {
             meteors.splice(i, 1); 
             
-            // Re-inserisci una nuova meteora se il livello lo prevede
             if (currentLevel > 1) { 
                 meteors.push(generateMeteor());
             }
@@ -475,7 +529,7 @@ function update() {
     if (head.y < 0) head.y = gridHeight - 1;
     if (head.y >= gridHeight) head.y = 0;
 
-    // 6. Collisioni (Asteroidi Fissi e Meteore)
+    // 6. Collisioni
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
             if (!isShieldActive) { 
@@ -487,7 +541,6 @@ function update() {
         }
     }
     
-    // Collisione con le Meteore Mobili
     for (let i = meteors.length - 1; i >= 0; i--) {
         let m = meteors[i];
         if (head.x === Math.floor(m.x) && head.y === Math.floor(m.y)) {
@@ -495,12 +548,11 @@ function update() {
                 gameOver = true;
                 break; 
             } else {
-                meteors.splice(i, 1); // Distruggi la meteora
+                meteors.splice(i, 1); 
             }
         }
     }
 
-    // Collisione con se stesso
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
             if (!isShieldActive) { gameOver = true; }
@@ -510,6 +562,12 @@ function update() {
 
     // --- GESTIONE GAME OVER ---
     if (gameOver) {
+        const crashX = worm[0].x;
+        const crashY = worm[0].y;
+        
+        createParticles(crashX, crashY, 80, '0, 170, 255', 'explosion'); 
+        createParticles(crashX, crashY, 40, '100, 100, 100', 'explosion'); 
+        
         clearInterval(gameInterval);
         
         let leaderboard = loadLeaderboard();
@@ -538,7 +596,7 @@ function update() {
     }
     // -------------------------
 
-    // 7. Controlla raccolta Power-up (Invariata)
+    // 7. Controlla raccolta Power-up
     if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
         switch(powerUp.type) {
             case 'shield':
@@ -567,9 +625,11 @@ function update() {
 
     worm.unshift(head); 
 
-    // 8. Controlla se il verme ha mangiato il cibo (Logica Livello e Velocità)
+    // 8. Controlla se il verme ha mangiato il cibo 
     if (head.x === food.x && head.y === food.y) {
         score++;
+        
+        createParticles(food.x, food.y, 40, '255, 255, 0', 'eat'); 
         
         if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
             currentLevel++;
@@ -629,6 +689,7 @@ function partialGameRestart() {
     clearInterval(gameInterval);
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
+    directionChanged = false;
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
@@ -636,6 +697,7 @@ function partialGameRestart() {
     speedBoostTimer = 0;
     isSlowDownActive = false;
     slowDownTimer = 0;
+    particles = []; 
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
     generateMeteors(currentLevel); 
@@ -652,6 +714,7 @@ function initGame() {
     gameSpeed = initialGameSpeed; 
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
+    directionChanged = false;
     score = 0;
     gameOver = false;
     clearInterval(gameInterval);
@@ -663,6 +726,7 @@ function initGame() {
     speedBoostTimer = 0;
     isSlowDownActive = false;
     slowDownTimer = 0;
+    particles = []; 
 
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
@@ -674,40 +738,64 @@ function initGame() {
 }
 
 // ----------------------------------------------------------------------
-// GESTIONE INPUT E LISTENER (Invariati)
+// GESTIONE INPUT E LISTENER (Corretta: Buffer di Input)
 // ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
-    if (gameOver) return;
+    if (gameOver || **directionChanged**) return; // BLOCCO AGGIUNTO
     const keyPressed = event.key;
+    let newDirection = null;
 
     switch (keyPressed) {
         case 'ArrowUp':
-            if (direction !== 'down') direction = 'up';
+        case 'w':
+            if (direction !== 'down') newDirection = 'up';
             break;
         case 'ArrowDown':
-            if (direction !== 'up') direction = 'down';
+        case 's':
+            if (direction !== 'up') newDirection = 'down';
             break;
         case 'ArrowLeft':
-            if (direction !== 'right') direction = 'left';
+        case 'a':
+            if (direction !== 'right') newDirection = 'left';
             break;
         case 'ArrowRight':
-            if (direction !== 'left') direction = 'right';
+        case 'd':
+            if (direction !== 'left') newDirection = 'right';
             break;
+    }
+    
+    if (newDirection) {
+        direction = newDirection;
+        **directionChanged = true;** // Imposta il flag per bloccare l'input rapido
     }
 }
 
 function handleButtonClick(newDirection) {
-    if (gameOver) return;
-    if (newDirection === 'up' && direction !== 'down') direction = 'up';
-    else if (newDirection === 'down' && direction !== 'up') direction = 'down';
-    else if (newDirection === 'left' && direction !== 'right') direction = 'left';
-    else if (newDirection === 'right' && direction !== 'left') direction = 'right';
+    if (gameOver || **directionChanged**) return; // BLOCCO AGGIUNTO
+    let changed = false;
+
+    if (newDirection === 'up' && direction !== 'down') {
+        direction = 'up'; changed = true;
+    }
+    else if (newDirection === 'down' && direction !== 'up') {
+        direction = 'down'; changed = true;
+    }
+    else if (newDirection === 'left' && direction !== 'right') {
+        direction = 'left'; changed = true;
+    }
+    else if (newDirection === 'right' && direction !== 'left') {
+        direction = 'right'; changed = true;
+    }
+
+    if (changed) {
+        **directionChanged = true;** // Imposta il flag per bloccare l'input rapido
+    }
 }
 
 function handleSwipe(event) {
-    if (gameOver) return;
-
+    if (gameOver) return; // Non blocchiamo qui, lo fa handleButtonClick
+    
     if (event.changedTouches.length === 0) return;
     
     const touchEndX = event.changedTouches[0].clientX;
