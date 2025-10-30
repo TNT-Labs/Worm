@@ -76,7 +76,7 @@ const IMAGE_PATHS = {
     wormHead: './assets/images/worm_head.png',
     wormBody: './assets/images/worm_body.png',
     starFood: './assets/images/star_food.png',
-    asteroidStatic: './assets/images/asteroid_static.png',
+    asteroidStatic: './assets/images/asteroids_static.png',
     meteorMobile: './assets/images/meteor_mobile.png',
     powerUpShield: './assets/images/powerup_shield.png',
     powerUpSpeed: './assets/images/powerup_speed.png',
