@@ -1,52 +1,64 @@
-# Worm Day: The Space Snake PWA
+# 🐛 Worm Day: Galactic Glutton
 
-**Worm Day** è una Progressive Web App (PWA) che rivisita il classico gioco Snake in un'ambientazione spaziale, con l'aggiunta di asteroidi fissi e diversi Power-up per rendere il gameplay più dinamico.
+Un remake in stile arcade del classico gioco Snake (o "verme") ambientato nello spazio, con l'aggiunta di asteroidi fissi, meteore mobili, power-up temporanei e una classifica locale. L'obiettivo è mangiare quante più stelle possibili senza scontrarsi con gli ostacoli o con il proprio corpo.
 
-Il gioco è completamente **responsivo** e ottimizzato per l'utilizzo su desktop e dispositivi mobili (smartphone).
 
-## 🚀 Caratteristiche Principali
 
-* **Gameplay Classico:** Muovi il verme per mangiare il cibo e crescere.
-* **Pericoli Spaziali:** Evita gli asteroidi fissi sparsi sulla griglia.
-* **Velocità Adattiva:** La velocità aumenta progressivamente man mano che il punteggio cresce.
-* **Livelli:** Aumenta il livello e affronta un numero maggiore di asteroidi.
-* **Teletrasporto:** Se il verme raggiunge un bordo, riappare sul lato opposto.
-* **PWA Ready:** Può essere installato come applicazione nativa sul dispositivo (richiede i file `manifest.json` e `sw.js`).
-* **Responsivo:** Ottimizzato per adattarsi a qualsiasi dimensione di schermo.
+## 🎮 Come si Gioca
 
-## ✨ Nuove Funzionalità e Power-up
+L'obiettivo è guidare il verme intergalattico (la testa luminosa) per mangiare le **stelle gialle** (`⭐`). Ogni stella ti fa crescere e aumenta il tuo punteggio.
 
-Sono stati aggiunti tre Power-up che appaiono casualmente sul campo di gioco:
+### Controlli
 
-| Icona (Visiva) | Tipo di Power-up | Colore | Effetto | Durata (Approssimativa) |
-| :--- | :--- | :--- | :--- | :--- |
-| 🧊 | **Shield (Scudo)** | Ciano | Protegge il verme da una collisione con un asteroide o con se stesso, distruggendo l'ostacolo. | 50 tick |
-| 🔴 | **Speed Boost (Accelerazione)** | Rosso | Raddoppia la velocità di movimento del verme. | 30 tick |
-| 🟢 | **Slow Down (Rallentamento)** | Verde | Dimezza la velocità di movimento del gioco. | 40 tick |
+| Metodo | Tasto/Azione | Funzione |
+| :--- | :--- | :--- |
+| **Tastiera** | `Freccia Su` / `W` | Muovi Su |
+| | `Freccia Giù` / `S` | Muovi Giù |
+| | `Freccia Sinistra` / `A` | Muovi Sinistra |
+| | `Freccia Destra` / `D` | Muovi Destra |
+| **Touch/Mobile** | **Swipe** sul canvas di gioco | Muove il verme nella direzione dello swipe |
+| **Pulsanti** | **Pulsanti D-Pad** in HTML | Controlli direzionali |
 
-## 🛠️ Struttura del Progetto
+### Modalità di Gioco
 
-Il progetto si basa su HTML, CSS e JavaScript Vanilla.
+* **Difficoltà Adattiva:** La velocità del verme aumenta gradualmente ogni **3 stelle** raccolte.
+* **Livelli:** Ogni **10 punti**, si avanza al livello successivo, aumentando il numero di asteroidi fissi e introducendo **nuove meteore mobili**.
 
-| File | Descrizione |
-| :--- | :--- |
-| `index.html` | Contiene la struttura del gioco (canvas, schermata di Game Over, controlli) e il tag `viewport` fondamentale per la responsività. |
-| `style.css` | Definisce lo stile, il layout **responsivo** del `body`, del `canvas` e dei controlli. |
-| `script.js` | Contiene tutta la logica di gioco, inclusa la gestione dei Power-up, il movimento, le collisioni, la velocità adattiva e la funzione `resizeCanvas()` per il dimensionamento dinamico. |
-| `manifest.json` | (Non incluso nel codice ma necessario per PWA) Definisce le proprietà di installazione della PWA. |
-| `sw.js` | (Non incluso nel codice ma necessario per PWA) Service Worker per il caching e il funzionamento offline. |
+## 🚀 Elementi di Gioco e Ostacoli
 
-## 📱 Controlli
+| Elemento | Aspetto | Effetto |
+| :--- | :--- | :--- |
+| **Cibo** | Cerchio Giallo (`⭐`) | Aumenta il punteggio e la lunghezza del verme. |
+| **Asteroide Fisso** | Quadrato Grigio Scuro | Collisione = **Game Over** (a meno che lo scudo sia attivo). |
+| **Meteora Mobile** | Quadrato Arancione (Mobili) | Si muovono attraverso lo schermo. Collisione = **Game Over** (a meno che lo scudo sia attivo). |
+| **Teletrasporto** | Bordi del Canvas | Il verme riappare sul lato opposto quando esce dai bordi. |
 
-Il gioco supporta l'input da tastiera e touch/swipe.
+### Power-Up (Spawn casuale)
 
-* **Desktop:** Utilizza i tasti freccia (↑, ↓, ←, →).
-* **Mobile:**
-    * Utilizza i **pulsanti direzionali** sotto il quadro di gioco.
-    * Utilizza i gesti di **Swipe** sul canvas.
+| Power-up | Colore | Durata | Effetto |
+| :--- | :--- | :--- | :--- |
+| **Scudo** | Azzurro/Ciano | 50 update cicli | Rende il verme invulnerabile a collisioni (Asteroidi/Meteore/Se Stesso). |
+| **Boost Velocità** | Rosso | 30 update cicli | Raddoppia la velocità di gioco. |
+| **Rallentamento** | Verde | 40 update cicli | Dimezza la velocità di gioco. |
 
-## ⚙️ Istruzioni per l'Esecuzione
+## 📊 Classifica Locale
 
-1.  Clona o scarica la repository.
-2.  Apri il file `index.html` nel tuo browser.
-3.  Per eseguire il gioco in un ambiente locale PWA (per testare `manifest.json` e `sw.js`), è necessario utilizzare un server locale (ad esempio, con VS Code Live Server o un semplice server HTTP da linea di comando).
+Il gioco implementa una **Classifica Locale** (Leaderboard) che salva i 5 punteggi più alti nel tuo browser utilizzando `localStorage`.
+
+* Al Game Over, se il tuo punteggio è sufficientemente alto (entra nella Top 5), ti verrà chiesto di inserire le tue iniziali per salvare il record.
+
+## ⚙️ Struttura del Progetto
+
+Il gioco è costruito utilizzando puro JavaScript, HTML e CSS, concentrandosi sull'uso dell'elemento Canvas per il rendering.
+
+* **`index.html`**: Contiene la struttura del gioco, il canvas, i controlli D-Pad e le sezioni di Game Over/Classifica.
+* **`style.css`**: Contiene lo styling del layout e l'aspetto grafico degli elementi non-canvas.
+* **`script.js`**: Contiene tutta la logica di gioco, inclusi il ciclo `update`, la gestione delle collisioni, i Power-up, la logica dei livelli e la gestione della `localStorage` per la classifica.
+
+### Punti Chiave di `script.js`
+
+1.  **Rendering:** Tutte le entità (stelle, verme, ostacoli) sono disegnate sul Canvas in `draw()`.
+2.  **Logica:** La funzione `update()` gestisce il movimento, la collisione (incluse le collisioni delle meteore con `Math.floor()`) e gli stati dei Power-up.
+3.  **Difficoltà:** La difficoltà è regolata da due funzioni principali:
+    * `calculateAsteroidCount()`: Aumenta gli ostacoli fissi ad ogni livello.
+    * `generateMeteors()`: Aggiunge una meteora mobile extra ad ogni livello.
