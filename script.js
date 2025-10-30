@@ -472,44 +472,132 @@ function draw() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO (Aggiornata per Audio)
+// FUNZIONE UPDATE() - LOGICA DI GIOCO (Corretta: Input e Pulizia)
 // ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
     
-    // Resetta il flag di cambio direzione per il frame corrente
+    // CORREZIONE BUG A: Resetta il flag di cambio direzione per il frame corrente
     directionChanged = false; 
 
-    // 1. GESTIONE TIMER POWER-UP (Omissis)
-    // ...
+    // 1. GESTIONE TIMER POWER-UP
+    if (isShieldActive) {
+        shieldTimer--;
+        if (shieldTimer <= 0) { isShieldActive = false; }
+    }
+    if (isSpeedBoostActive) {
+        speedBoostTimer--;
+        if (speedBoostTimer <= 0) { 
+            isSpeedBoostActive = false;
+            clearInterval(gameInterval);
+            gameInterval = setInterval(update, gameSpeed);
+        }
+    }
+    if (isSlowDownActive) {
+        slowDownTimer--;
+        if (slowDownTimer <= 0) { 
+            isSlowDownActive = false;
+            clearInterval(gameInterval);
+            gameInterval = setInterval(update, gameSpeed);
+        }
+    }
+    
+    // 1b. Muovi e gestisci la vita delle particelle
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
 
-    // 1b. Muovi e gestisci la vita delle particelle (Omissis)
-    // ...
+        p.x += p.dx;
+        p.y += p.dy;
+        
+        p.dx *= 0.95;
+        p.dy *= 0.95;
 
+        p.life--;
+
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+
+    // MIGLIORAMENTO C: Calcola le dimensioni della griglia una sola volta
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
 
-    // 2. Muovi le stelle (Omissis)
-    // ...
+    // 2. Muovi le stelle (Sfondo Animato)
+    for (let star of stars) {
+        star.x += star.speed;
+        star.y += star.speed / 2;
+
+        if (star.x > canvas.width) { star.x = 0; star.y = Math.random() * canvas.height; }
+        if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
+    }
     
-    // 3. Muovi e gestisci le meteore (Omissis)
-    // ...
+    // 3. Muovi e gestisci le meteore
+    for (let i = meteors.length - 1; i >= 0; i--) {
+        let m = meteors[i];
+        
+        m.x += m.dx;
+        m.y += m.dy;
+        
+        if (m.x < -1 || m.x > gridWidth + 1 || m.y < -1 || m.y > gridHeight + 1) {
+            meteors.splice(i, 1); 
+            
+            if (currentLevel > 1) { 
+                meteors.push(generateMeteor());
+            }
+        }
+    }
 
-    // 4. Muovi il verme (Omissis)
-    // ...
+    // 4. Muovi il verme
+    const head = { x: worm[0].x, y: worm[0].y };
 
-    // 5. Controlla i bordi (Teletrasporto) (Omissis)
-    // ...
+    switch (direction) {
+        case 'up': head.y--; break;
+        case 'down': head.y++; break;
+        case 'left': head.x--; break;
+        case 'right': head.x++; break;
+    }
 
-    // 6. Collisioni (Omissis)
-    // ...
+    // 5. Controlla i bordi (Teletrasporto)
+    if (head.x < 0) head.x = gridWidth - 1;
+    if (head.x >= gridWidth) head.x = 0;
+    if (head.y < 0) head.y = gridHeight - 1;
+    if (head.y >= gridHeight) head.y = 0;
 
-    // --- GESTIONE GAME OVER (Audio aggiunto) ---
+    // 6. Collisioni
+    for (let asteroid of asteroids) {
+        if (head.x === asteroid.x && head.y === asteroid.y) {
+            if (!isShieldActive) { 
+                gameOver = true;
+            } else {
+                 asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
+                 break;
+            }
+        }
+    }
+    
+    for (let i = meteors.length - 1; i >= 0; i--) {
+        let m = meteors[i];
+        if (head.x === Math.floor(m.x) && head.y === Math.floor(m.y)) {
+            if (!isShieldActive) {
+                gameOver = true;
+                break; 
+            } else {
+                meteors.splice(i, 1); 
+            }
+        }
+    }
+
+    for (let i = 1; i < worm.length; i++) {
+        if (head.x === worm[i].x && head.y === worm[i].y) {
+            if (!isShieldActive) { gameOver = true; }
+        }
+    }
+
+
+    // --- GESTIONE GAME OVER ---
     if (gameOver) {
-        stopBGM(); 
-        playSound('gameOver', false, 0.8); 
-
         const crashX = worm[0].x;
         const crashY = worm[0].y;
         
@@ -544,20 +632,63 @@ function update() {
     }
     // -------------------------
 
-    // 7. Controlla raccolta Power-up (Omissis)
-    // ...
+    // 7. Controlla raccolta Power-up
+    if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
+        switch(powerUp.type) {
+            case 'shield':
+                isShieldActive = true;
+                shieldTimer = SHIELD_DURATION;
+                isSpeedBoostActive = false;
+                isSlowDownActive = false;
+                break;
+            case 'speed':
+                isSpeedBoostActive = true;
+                speedBoostTimer = SPEED_BOOST_DURATION;
+                clearInterval(gameInterval);
+                gameInterval = setInterval(update, gameSpeed / 2); 
+                isSlowDownActive = false;
+                break;
+            case 'slow':
+                isSlowDownActive = true;
+                slowDownTimer = SLOW_DOWN_DURATION;
+                clearInterval(gameInterval);
+                gameInterval = setInterval(update, gameSpeed * 2); 
+                isSpeedBoostActive = false;
+                break;
+        }
+        powerUp = null; 
+    }
 
     worm.unshift(head); 
 
-    // 8. Controlla se il verme ha mangiato il cibo (Audio aggiunto)
+    // 8. Controlla se il verme ha mangiato il cibo 
     if (head.x === food.x && head.y === food.y) {
         score++;
         
-        playSound('eat'); // Riproduce l'SFX del cibo raccolto
         createParticles(food.x, food.y, 40, '255, 255, 0', 'eat'); 
         
-        // Logica Livello e Velocità (Omissis)
-        // ...
+        if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
+            currentLevel++;
+            alert(`Livello ${currentLevel} raggiunto! Nuovi pericoli ti aspettano!`);
+            partialGameRestart();
+            return; 
+        }
+
+        generateFood(); 
+        maybeGeneratePowerUp(); 
+
+        // LOGICA DI VELOCITÀ ADATTIVA 
+        if (score % speedThreshold === 0) {
+            if (gameSpeed > 50) {
+                gameSpeed -= speedDecrease;
+                if (gameSpeed < 50) gameSpeed = 50; 
+                
+                if (!isSpeedBoostActive && !isSlowDownActive) {
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(update, gameSpeed);
+                }
+            }
+        }
 
     } else {
         worm.pop(); 
