@@ -1,37 +1,43 @@
 /* style.css */
 
-/* Garantisce che il corpo della pagina sia pronto per il contenimento */
 body {
-    /* Il resto del body style rimane lo stesso */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-around; /* Distribuisce lo spazio tra canvas e pulsanti */
     min-height: 100vh;
-    overflow-x: hidden; /* Impedisce lo scorrimento orizzontale su mobile */
+    width: 100vw; /* Forza la larghezza al 100% della viewport */
+    overflow-x: hidden; /* Impedisce lo scorrimento orizzontale */
     background-color: #0d0d1a;
     color: white;
     font-family: Arial, sans-serif;
     margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* Include padding e border nella larghezza/altezza */
 }
 
 #gameCanvas {
-    /* Imposta la dimensione massima che il canvas può raggiungere */
-    max-width: 100%;
-    /* Limita l'altezza per lasciare spazio ai pulsanti di controllo su schermi piccoli */
-    max-height: 80vh; 
+    width: 100%; /* Inizialmente occupa tutta la larghezza del contenitore */
+    max-width: 400px; /* Limite massimo per desktop */
+    max-height: 80vh; /* Limita l'altezza per schermi piccoli */
     
     display: block;
-    margin: 10px auto; /* Centra il canvas con un po' di margine */
+    margin: 10px auto; 
     border: 2px solid #00ffff;
     background-color: black;
-    /* Rimuovere eventuali width/height fisse che potrebbero esserci state qui */
 }
 
-/* Rendi la schermata di Game Over adattabile */
+#game-container {
+    width: 100%;
+    max-width: 400px; /* Allinea il contenitore al canvas per il centraggio */
+    position: relative;
+    display: flex; /* Centra il canvas all'interno se è più piccolo di 400px */
+    justify-content: center;
+}
+
+/* Stili per la schermata di Game Over */
 #gameOverScreen {
     max-width: 90%;
-    /* Il resto degli stili rimane lo stesso */
     padding: 20px;
     border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.8);
@@ -42,4 +48,46 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 100;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Controlli per mobile */
+#controls {
+    max-width: 400px; 
+    width: 90%; 
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#controls .row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 5px 0;
+}
+
+#controls button {
+    background-color: #004488;
+    color: white;
+    border: 1px solid #00ffff;
+    padding: 10px 20px;
+    margin: 0 5px;
+    cursor: pointer;
+    font-size: 1.2em;
+    min-width: 60px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+#controls button:active {
+    background-color: #0066cc;
+}
+
+#controls #up, #controls #down {
+    width: 60px;
 }
