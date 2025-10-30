@@ -18,14 +18,13 @@ let gridSize = 20;
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
 let direction = 'right'; 
-let **directionChanged** = false; // NUOVO: Flag per bloccare l'input rapido
 let score = 0;
 let gameOver = false;
 
 // VARIABILI PER GLI ELEMENTI DI GIOCO
 let asteroids = []; // Fissi
 let meteors = [];   // Mobili 
-let particles = []; // Particelle per effetti visivi
+let particles = []; // NUOVO: Particelle per effetti visivi
 let stars = []; 
 
 // VARIABILI PER LA VELOCITÀ E IL TIMER
@@ -148,7 +147,7 @@ function savePlayerScore() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONI GENERAZIONE OGGETTI (Invariate)
+// FUNZIONI GENERAZIONE OGGETTI
 // ----------------------------------------------------------------------
 
 function generateRandomSafePosition(ignoreList = []) {
@@ -211,22 +210,22 @@ function generateMeteor() {
     
     let meteor = {};
 
-    if (entrySide === 0) { 
+    if (entrySide === 0) { // Entra dall'alto
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = -1; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = Math.random() * 0.1 + 0.1; 
-    } else if (entrySide === 1) { 
+    } else if (entrySide === 1) { // Entra dal basso
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = gridHeight; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = -(Math.random() * 0.1 + 0.1); 
-    } else if (entrySide === 2) { 
+    } else if (entrySide === 2) { // Entra da sinistra
         meteor.x = -1; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = Math.random() * 0.1 + 0.1; 
         meteor.dy = Math.random() * 0.2 - 0.1;
-    } else { 
+    } else { // Entra da destra
         meteor.x = gridWidth; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = -(Math.random() * 0.1 + 0.1); 
@@ -273,19 +272,25 @@ function generateStars() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONI PARTICELLE (Invariate)
+// FUNZIONI PARTICELLE (NUOVE)
 // ----------------------------------------------------------------------
 
+/**
+ * Genera un set di particelle in una data posizione con un colore e tipo specifici.
+ * La posizione (x, y) è in coordinate di griglia (es. 10, 10).
+ */
 function createParticles(x, y, count, color, type) {
     for (let i = 0; i < count; i++) {
+        // La particella erediterà la dimensione e la posizione dalla griglia
         const particle = {
-            x: x + 0.5, 
+            x: x + 0.5, // Centro del quadrato della griglia
             y: y + 0.5,
             color: color,
+            // Velocità casuale: dx e dy tra -0.5 e 0.5
             dx: (Math.random() - 0.5) * (type === 'explosion' ? 0.3 : 0.6), 
             dy: (Math.random() - 0.5) * (type === 'explosion' ? 0.3 : 0.6),
-            size: Math.random() * 3 + 1, 
-            life: type === 'explosion' ? 60 : 30, 
+            size: Math.random() * 3 + 1, // Dimensione casuale
+            life: type === 'explosion' ? 60 : 30, // Durata in cicli di update
             originalLife: type === 'explosion' ? 60 : 30,
             type: type 
         };
@@ -294,7 +299,7 @@ function createParticles(x, y, count, color, type) {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE DRAW() - DISEGNO (Invariata)
+// FUNZIONE DRAW() - DISEGNO (Aggiornata: Particelle)
 // ----------------------------------------------------------------------
 
 function draw() {
@@ -408,16 +413,20 @@ function draw() {
         ctx.lineWidth = 1; 
     }
     
-    // 8. Disegna le Particelle 
+    // 8. Disegna le Particelle (NUOVO)
     for (const p of particles) {
+        // Calcola l'opacità per farle svanire
         const opacity = p.life / p.originalLife; 
         
+        // Imposta il colore e l'opacità
         ctx.fillStyle = `rgba(${p.color}, ${opacity})`;
 
+        // Disegna la particella (in pixel, non in caselle di griglia)
         const renderX = p.x * gridSize;
         const renderY = p.y * gridSize;
 
         ctx.beginPath();
+        // Disegna un cerchio
         ctx.arc(renderX, renderY, p.size / 2, 0, Math.PI * 2); 
         ctx.fill();
     }
@@ -436,14 +445,11 @@ function draw() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO (Corretta: Input e Pulizia)
+// FUNZIONE UPDATE() - LOGICA DI GIOCO (Aggiornata: Particelle)
 // ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
-    
-    // CORREZIONE BUG A: Resetta il flag di cambio direzione per il frame corrente
-    directionChanged = false; 
 
     // 1. GESTIONE TIMER POWER-UP
     if (isShieldActive) {
@@ -467,24 +473,28 @@ function update() {
         }
     }
     
-    // 1b. Muovi e gestisci la vita delle particelle
+    // 1b. Muovi e gestisci la vita delle particelle (NUOVO)
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
+        // 1. Applica il movimento
         p.x += p.dx;
         p.y += p.dy;
         
+        // 2. Rallenta il movimento nel tempo
         p.dx *= 0.95;
         p.dy *= 0.95;
 
+        // 3. Diminuisci la vita
         p.life--;
 
+        // 4. Rimuovi le particelle la cui vita è finita
         if (p.life <= 0) {
             particles.splice(i, 1);
         }
     }
 
-    // MIGLIORAMENTO C: Calcola le dimensioni della griglia una sola volta
+    // Calcola le dimensioni della griglia
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
 
@@ -560,11 +570,13 @@ function update() {
     }
 
 
-    // --- GESTIONE GAME OVER ---
+    // --- GESTIONE GAME OVER (Aggiornata: Particelle) ---
     if (gameOver) {
+        // Crea l'esplosione dal punto di collisione (la testa)
         const crashX = worm[0].x;
         const crashY = worm[0].y;
         
+        // Particelle blu (corpo) e scure (impatto)
         createParticles(crashX, crashY, 80, '0, 170, 255', 'explosion'); 
         createParticles(crashX, crashY, 40, '100, 100, 100', 'explosion'); 
         
@@ -625,10 +637,11 @@ function update() {
 
     worm.unshift(head); 
 
-    // 8. Controlla se il verme ha mangiato il cibo 
+    // 8. Controlla se il verme ha mangiato il cibo (Aggiornata: Particelle)
     if (head.x === food.x && head.y === food.y) {
         score++;
         
+        // Genera l'esplosione di particelle al momento della raccolta
         createParticles(food.x, food.y, 40, '255, 255, 0', 'eat'); 
         
         if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
@@ -689,7 +702,6 @@ function partialGameRestart() {
     clearInterval(gameInterval);
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
-    directionChanged = false;
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
@@ -697,7 +709,7 @@ function partialGameRestart() {
     speedBoostTimer = 0;
     isSlowDownActive = false;
     slowDownTimer = 0;
-    particles = []; 
+    particles = []; // Rimuovi particelle residue
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
     generateMeteors(currentLevel); 
@@ -714,7 +726,6 @@ function initGame() {
     gameSpeed = initialGameSpeed; 
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
-    directionChanged = false;
     score = 0;
     gameOver = false;
     clearInterval(gameInterval);
@@ -726,7 +737,7 @@ function initGame() {
     speedBoostTimer = 0;
     isSlowDownActive = false;
     slowDownTimer = 0;
-    particles = []; 
+    particles = []; // Rimuovi particelle residue
 
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
@@ -738,64 +749,40 @@ function initGame() {
 }
 
 // ----------------------------------------------------------------------
-// GESTIONE INPUT E LISTENER (Corretta: Buffer di Input)
+// GESTIONE INPUT E LISTENER (Invariati)
 // ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
-    if (gameOver || **directionChanged**) return; // BLOCCO AGGIUNTO
+    if (gameOver) return;
     const keyPressed = event.key;
-    let newDirection = null;
 
     switch (keyPressed) {
         case 'ArrowUp':
-        case 'w':
-            if (direction !== 'down') newDirection = 'up';
+            if (direction !== 'down') direction = 'up';
             break;
         case 'ArrowDown':
-        case 's':
-            if (direction !== 'up') newDirection = 'down';
+            if (direction !== 'up') direction = 'down';
             break;
         case 'ArrowLeft':
-        case 'a':
-            if (direction !== 'right') newDirection = 'left';
+            if (direction !== 'right') direction = 'left';
             break;
         case 'ArrowRight':
-        case 'd':
-            if (direction !== 'left') newDirection = 'right';
+            if (direction !== 'left') direction = 'right';
             break;
-    }
-    
-    if (newDirection) {
-        direction = newDirection;
-        **directionChanged = true;** // Imposta il flag per bloccare l'input rapido
     }
 }
 
 function handleButtonClick(newDirection) {
-    if (gameOver || **directionChanged**) return; // BLOCCO AGGIUNTO
-    let changed = false;
-
-    if (newDirection === 'up' && direction !== 'down') {
-        direction = 'up'; changed = true;
-    }
-    else if (newDirection === 'down' && direction !== 'up') {
-        direction = 'down'; changed = true;
-    }
-    else if (newDirection === 'left' && direction !== 'right') {
-        direction = 'left'; changed = true;
-    }
-    else if (newDirection === 'right' && direction !== 'left') {
-        direction = 'right'; changed = true;
-    }
-
-    if (changed) {
-        **directionChanged = true;** // Imposta il flag per bloccare l'input rapido
-    }
+    if (gameOver) return;
+    if (newDirection === 'up' && direction !== 'down') direction = 'up';
+    else if (newDirection === 'down' && direction !== 'up') direction = 'down';
+    else if (newDirection === 'left' && direction !== 'right') direction = 'left';
+    else if (newDirection === 'right' && direction !== 'left') direction = 'right';
 }
 
 function handleSwipe(event) {
-    if (gameOver) return; // Non blocchiamo qui, lo fa handleButtonClick
-    
+    if (gameOver) return;
+
     if (event.changedTouches.length === 0) return;
     
     const touchEndX = event.changedTouches[0].clientX;
