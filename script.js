@@ -92,9 +92,9 @@ let audioBuffers = {};
 let bgmSource = null;
 
 const AUDIO_PATHS = {
-    eat: 'assets/audio/sfx_eat.mp3',
-    gameOver: 'assets/audio/sfx_game_over.mp3',
-    bgm: 'assets/audio/bgm_loop.mp3'
+    eat: './assets/audio/sfx_eat.mp3',
+    gameOver: './assets/audio/sfx_game_over.mp3',
+    bgm: './assets/audio/bgm_loop.mp3'
 };
 
 async function loadAudio(url, key) {
