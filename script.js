@@ -18,7 +18,7 @@ let gridSize = 20;
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
 let direction = 'right'; 
-let **directionChanged** = false; // NUOVO: Flag per bloccare l'input rapido
+let directionChanged = false; // NUOVO: Flag per bloccare l'input rapido
 let score = 0;
 let gameOver = false;
 
