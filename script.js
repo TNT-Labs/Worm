@@ -38,11 +38,18 @@ const minSwipeDistance = 10;
 // VARIABILI PER LO SFONDO ANIMATO
 const STAR_COUNT = 100;
 
-// VARIABILI PER IL POWER-UP
+// VARIABILI PER IL POWER-UP (AGGIORNATE)
 let powerUp = null;
 let isShieldActive = false;
 let shieldTimer = 0;
 const SHIELD_DURATION = 50; 
+
+let isSpeedBoostActive = false;
+let speedBoostTimer = 0;
+const SPEED_BOOST_DURATION = 30; 
+let isSlowDownActive = false;
+let slowDownTimer = 0;
+const SLOW_DOWN_DURATION = 40; 
 
 // VARIABILI E COSTANTI PER I LIVELLI
 let currentLevel = 1;
@@ -50,7 +57,7 @@ const SCORE_TO_NEXT_LEVEL = 10;
 const ASTEROIDS_PER_LEVEL = 2;
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI UTILITÀ (CARICAMENTO, SALVATAGGIO, GENERAZIONE SICURA)
+// FUNZIONI DI UTILITÀ (CARICAMENTO, SALVATAGGIO, GENERAZIONE SICURA, RESPONSIVITÀ)
 // ----------------------------------------------------------------------
 
 function loadHighScore() {
@@ -66,7 +73,6 @@ function saveHighScore() {
 
 /**
  * Genera una posizione casuale garantendo che non sia su verme, asteroidi, cibo o power-up.
- * @param {Array<Object>} ignoreList - Lista di oggetti ({x, y}) da ignorare temporaneamente.
  */
 function generateRandomSafePosition(ignoreList = []) {
     const gridWidth = canvas.width / gridSize;
@@ -82,7 +88,7 @@ function generateRandomSafePosition(ignoreList = []) {
 
         collision = false;
         
-        // 1. Controlla collisione con il Verme (Corpo e Testa)
+        // 1. Controlla collisione con il Verme
         for (let segment of worm) {
             if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
         }
@@ -112,7 +118,6 @@ function calculateAsteroidCount() {
 function generateAsteroids(count) {
     asteroids = [];
     for (let i = 0; i < count; i++) {
-        // Ignora cibo e powerUp
         asteroids.push(generateRandomSafePosition([food, powerUp].filter(item => item !== null)));
     }
 }
@@ -132,43 +137,40 @@ function generateStars() {
     }
 }
 
+// AGGIORNATA per scegliere tra SHIELD, SPEED, SLOW
 function maybeGeneratePowerUp() {
-    if (Math.random() < 0.03 && powerUp === null) { 
+    // Aumentiamo leggermente la probabilità (5%)
+    if (Math.random() < 0.05 && powerUp === null) { 
+        const types = ['shield', 'speed', 'slow'];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        
         powerUp = generateRandomSafePosition([food]);
-        powerUp.type = 'shield';
+        powerUp.type = randomType;
     }
 }
 
-// NUOVA FUNZIONE PER IL CALCOLO RESPONSIVO
+// FUNZIONE PER IL CALCOLO RESPONSIVO
 function resizeCanvas() {
-    // La dimensione massima è 400px (fissata in CSS)
     const MAX_SIZE = 400; 
-
-    // Prendiamo la dimensione disponibile basata sulla larghezza della finestra
     let size = window.innerWidth;
     
-    // Limita la dimensione
     size = Math.min(MAX_SIZE, size);
     
-    // Rendi la dimensione un multiplo di 20 (i blocchi logici)
     const BLOCKS = 20; 
     let newCanvasSize = Math.floor(size / BLOCKS) * BLOCKS;
     
-    // Aggiusta se la dimensione è troppo piccola (sicurezza)
     if (newCanvasSize < 200) newCanvasSize = 200; 
 
-    // Assegna le nuove dimensioni al canvas
     canvas.width = newCanvasSize;
     canvas.height = newCanvasSize;
     
-    // Ricalcola gridSize
     gridSize = newCanvasSize / BLOCKS; 
     
     if (!gameOver) draw();
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE DRAW() - DISEGNO
+// FUNZIONE DRAW() - DISEGNO (AGGIORNATA per i nuovi power-up)
 // ----------------------------------------------------------------------
 
 function draw() {
@@ -198,8 +200,19 @@ function draw() {
 
     // 4. Disegna il Power-up
     if (powerUp) {
-        ctx.fillStyle = '#00ffff'; 
-        ctx.strokeStyle = 'white';
+        let color = '#00ffff'; // Default: Shield (Ciano)
+        let strokeColor = 'white';
+
+        if (powerUp.type === 'speed') {
+            color = '#ff0000'; // Rosso
+            strokeColor = 'yellow';
+        } else if (powerUp.type === 'slow') {
+            color = '#00ff00'; // Verde
+            strokeColor = 'white';
+        }
+        
+        ctx.fillStyle = color; 
+        ctx.strokeStyle = strokeColor;
         ctx.fillRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
         ctx.strokeRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
     }
@@ -275,7 +288,7 @@ function draw() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO
+// FUNZIONE UPDATE() - LOGICA DI GIOCO (AGGIORNATA per i nuovi Power-up)
 // ----------------------------------------------------------------------
 
 function update() {
@@ -286,6 +299,28 @@ function update() {
         shieldTimer--;
         if (shieldTimer <= 0) {
             isShieldActive = false;
+        }
+    }
+    
+    // NUOVO: GESTIONE TIMER ACCELERAZIONE
+    if (isSpeedBoostActive) {
+        speedBoostTimer--;
+        if (speedBoostTimer <= 0) {
+            isSpeedBoostActive = false;
+            // Ripristina la velocità standard
+            clearInterval(gameInterval);
+            gameInterval = setInterval(update, gameSpeed);
+        }
+    }
+    
+    // NUOVO: GESTIONE TIMER RALLENTAMENTO
+    if (isSlowDownActive) {
+        slowDownTimer--;
+        if (slowDownTimer <= 0) {
+            isSlowDownActive = false;
+            // Ripristina la velocità standard
+            clearInterval(gameInterval);
+            gameInterval = setInterval(update, gameSpeed);
         }
     }
     
@@ -368,13 +403,41 @@ function update() {
     }
     // -------------------------
 
-    // 7. Controlla raccolta Power-up
+    // 7. Controlla raccolta Power-up (LOGICA AGGIORNATA)
     if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
-        if (powerUp.type === 'shield') {
-            isShieldActive = true;
-            shieldTimer = SHIELD_DURATION;
-            powerUp = null;
+        switch(powerUp.type) {
+            case 'shield':
+                isShieldActive = true;
+                shieldTimer = SHIELD_DURATION;
+                isSpeedBoostActive = false;
+                isSlowDownActive = false;
+                break;
+                
+            case 'speed':
+                isSpeedBoostActive = true;
+                speedBoostTimer = SPEED_BOOST_DURATION;
+                
+                // Raddoppia la velocità (tempo dimezza)
+                clearInterval(gameInterval);
+                const fastSpeed = gameSpeed / 2; 
+                gameInterval = setInterval(update, fastSpeed); 
+                
+                isSlowDownActive = false;
+                break;
+                
+            case 'slow':
+                isSlowDownActive = true;
+                slowDownTimer = SLOW_DOWN_DURATION;
+                
+                // Dimezza la velocità (tempo raddoppia)
+                clearInterval(gameInterval);
+                const slowSpeed = gameSpeed * 2; 
+                gameInterval = setInterval(update, slowSpeed); 
+                
+                isSpeedBoostActive = false;
+                break;
         }
+        powerUp = null; // Rimuovi il power-up raccolto
     }
 
     worm.unshift(head); // Aggiungi la nuova testa
@@ -400,8 +463,11 @@ function update() {
                 gameSpeed -= speedDecrease;
                 if (gameSpeed < 50) gameSpeed = 50; 
                 
-                clearInterval(gameInterval);
-                gameInterval = setInterval(update, gameSpeed);
+                // Riavvia l'intervallo solo se NON è attivo un effetto speed/slow
+                if (!isSpeedBoostActive && !isSlowDownActive) {
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(update, gameSpeed);
+                }
             }
         }
 
@@ -422,9 +488,15 @@ function partialGameRestart() {
 
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
+    
+    // Reset di tutti gli stati dei power-up
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
+    isSpeedBoostActive = false;
+    speedBoostTimer = 0;
+    isSlowDownActive = false;
+    slowDownTimer = 0;
 
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
@@ -434,7 +506,7 @@ function partialGameRestart() {
 }
 
 function initGame() {
-    // 1. Imposta la dimensione del canvas in base alla finestra
+    // Imposta la dimensione del canvas in base alla finestra
     resizeCanvas(); 
 
     loadHighScore(); 
@@ -447,11 +519,16 @@ function initGame() {
     gameOver = false;
     clearInterval(gameInterval);
 
+    // Reset di tutti gli stati dei power-up
     powerUp = null;
     isShieldActive = false;
     shieldTimer = 0;
+    isSpeedBoostActive = false;
+    speedBoostTimer = 0;
+    isSlowDownActive = false;
+    slowDownTimer = 0;
 
-    // 2. Rigenera gli elementi in base al nuovo gridSize
+    // Rigenera gli elementi in base al nuovo gridSize
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
     generateStars(); 
