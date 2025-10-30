@@ -7,7 +7,8 @@ const finalScoreElement = document.getElementById('finalScore');
 const highScoreDisplayElement = document.getElementById('highScoreDisplay');
 const restartButton = document.getElementById('restartButton');
 
-const gridSize = 20; 
+// NOTA: gridSize viene calcolato dinamicamente in resizeCanvas()
+let gridSize = 20; 
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
 let direction = 'right'; 
@@ -136,6 +137,34 @@ function maybeGeneratePowerUp() {
         powerUp = generateRandomSafePosition([food]);
         powerUp.type = 'shield';
     }
+}
+
+// NUOVA FUNZIONE PER IL CALCOLO RESPONSIVO
+function resizeCanvas() {
+    // Definisci la dimensione minima e massima in pixel per il canvas
+    const MIN_SIZE = 200;
+    const MAX_SIZE = 400;
+
+    // Calcola la dimensione in base alla dimensione della finestra, usando la dimensione più piccola (larghezza o altezza)
+    // Sottrai un po' di margine per i controlli in basso su mobile
+    let size = Math.min(window.innerWidth, window.innerHeight * 0.9);
+    
+    // Limita la dimensione
+    size = Math.max(MIN_SIZE, Math.min(MAX_SIZE, size));
+
+    // Arrotonda per essere divisibile per la griglia (manteniamo sempre 20 blocchi logici)
+    const BLOCKS = 20; 
+    let newCanvasSize = Math.floor(size / BLOCKS) * BLOCKS;
+    
+    // Assegna le nuove dimensioni al canvas
+    canvas.width = newCanvasSize;
+    canvas.height = newCanvasSize;
+    
+    // Ricalcola gridSize in base alla nuova dimensione
+    gridSize = newCanvasSize / BLOCKS; 
+    
+    // Se il gioco non è terminato, ripristina la visualizzazione corretta
+    if (!gameOver) draw();
 }
 
 // ----------------------------------------------------------------------
@@ -369,7 +398,6 @@ function update() {
         if (score % speedThreshold === 0) {
             if (gameSpeed > 50) {
                 gameSpeed -= speedDecrease;
-                // Controllo di sicurezza: non scendere sotto i 50ms
                 if (gameSpeed < 50) gameSpeed = 50; 
                 
                 clearInterval(gameInterval);
@@ -392,6 +420,7 @@ function partialGameRestart() {
     gameOver = false;
     clearInterval(gameInterval);
 
+    // Mantiene lo stato del canvas, ma resetta la posizione del verme
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     powerUp = null;
@@ -406,6 +435,9 @@ function partialGameRestart() {
 }
 
 function initGame() {
+    // 1. Imposta la dimensione del canvas in base alla finestra
+    resizeCanvas(); 
+
     loadHighScore(); 
 
     currentLevel = 1;
@@ -420,6 +452,7 @@ function initGame() {
     isShieldActive = false;
     shieldTimer = 0;
 
+    // 2. Rigenera gli elementi in base al nuovo gridSize
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
     generateStars(); 
@@ -507,6 +540,7 @@ restartButton.addEventListener('click', () => {
     initGame();
 });
 
+// Event Listeners per lo Swipe sul Canvas
 canvas.addEventListener('touchstart', event => {
     if (gameOver) return;
     touchStartX = event.touches[0].clientX;
@@ -519,5 +553,12 @@ canvas.addEventListener('touchmove', event => {
 }, { passive: false });
 
 canvas.addEventListener('touchend', handleSwipe);
+
+// NUOVO: Listener per il ridimensionamento della finestra
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    // Non è necessario un initGame completo, ma bisogna rifare il disegno
+    if (!gameOver) draw(); 
+});
 
 initGame();
