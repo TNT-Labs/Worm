@@ -789,7 +789,7 @@ function handleButtonClick(newDirection) {
     }
 
     if (changed) {
-        **directionChanged = true;** // Imposta il flag per bloccare l'input rapido
+        directionChanged = true; // Imposta il flag per bloccare l'input rapido
     }
 }
 
