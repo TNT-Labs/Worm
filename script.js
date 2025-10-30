@@ -742,7 +742,7 @@ function initGame() {
 // ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
-    if (gameOver || **directionChanged**) return; // BLOCCO AGGIUNTO
+    if (gameOver || directionChanged) return; // BLOCCO AGGIUNTO
     const keyPressed = event.key;
     let newDirection = null;
 
@@ -772,7 +772,7 @@ function handleKeyPress(event) {
 }
 
 function handleButtonClick(newDirection) {
-    if (gameOver || **directionChanged**) return; // BLOCCO AGGIUNTO
+    if (gameOver || directionchanged) return; // BLOCCO AGGIUNTO
     let changed = false;
 
     if (newDirection === 'up' && direction !== 'down') {
