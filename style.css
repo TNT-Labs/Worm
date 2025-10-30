@@ -4,22 +4,22 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-around; /* Distribuisce lo spazio tra canvas e pulsanti */
+    justify-content: space-around; 
     min-height: 100vh;
-    width: 100vw; /* Forza la larghezza al 100% della viewport */
-    overflow-x: hidden; /* Impedisce lo scorrimento orizzontale */
+    width: 100vw; 
+    overflow-x: hidden; 
     background-color: #0d0d1a;
     color: white;
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    box-sizing: border-box; /* Include padding e border nella larghezza/altezza */
+    box-sizing: border-box; 
 }
 
 #gameCanvas {
-    width: 100%; /* Inizialmente occupa tutta la larghezza del contenitore */
-    max-width: 400px; /* Limite massimo per desktop */
-    max-height: 80vh; /* Limita l'altezza per schermi piccoli */
+    width: 100%; 
+    max-width: 400px; 
+    max-height: 80vh; 
     
     display: block;
     margin: 10px auto; 
@@ -29,9 +29,9 @@ body {
 
 #game-container {
     width: 100%;
-    max-width: 400px; /* Allinea il contenitore al canvas per il centraggio */
+    max-width: 400px; 
     position: relative;
-    display: flex; /* Centra il canvas all'interno se è più piccolo di 400px */
+    display: flex; 
     justify-content: center;
 }
 
