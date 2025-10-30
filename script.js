@@ -141,29 +141,29 @@ function maybeGeneratePowerUp() {
 
 // NUOVA FUNZIONE PER IL CALCOLO RESPONSIVO
 function resizeCanvas() {
-    // Definisci la dimensione minima e massima in pixel per il canvas
-    const MIN_SIZE = 200;
-    const MAX_SIZE = 400;
+    // La dimensione massima è 400px (fissata in CSS)
+    const MAX_SIZE = 400; 
 
-    // Calcola la dimensione in base alla dimensione della finestra, usando la dimensione più piccola (larghezza o altezza)
-    // Sottrai un po' di margine per i controlli in basso su mobile
-    let size = Math.min(window.innerWidth, window.innerHeight * 0.9);
+    // Prendiamo la dimensione disponibile basata sulla larghezza della finestra
+    let size = window.innerWidth;
     
     // Limita la dimensione
-    size = Math.max(MIN_SIZE, Math.min(MAX_SIZE, size));
-
-    // Arrotonda per essere divisibile per la griglia (manteniamo sempre 20 blocchi logici)
+    size = Math.min(MAX_SIZE, size);
+    
+    // Rendi la dimensione un multiplo di 20 (i blocchi logici)
     const BLOCKS = 20; 
     let newCanvasSize = Math.floor(size / BLOCKS) * BLOCKS;
     
+    // Aggiusta se la dimensione è troppo piccola (sicurezza)
+    if (newCanvasSize < 200) newCanvasSize = 200; 
+
     // Assegna le nuove dimensioni al canvas
     canvas.width = newCanvasSize;
     canvas.height = newCanvasSize;
     
-    // Ricalcola gridSize in base alla nuova dimensione
+    // Ricalcola gridSize
     gridSize = newCanvasSize / BLOCKS; 
     
-    // Se il gioco non è terminato, ripristina la visualizzazione corretta
     if (!gameOver) draw();
 }
 
@@ -420,7 +420,6 @@ function partialGameRestart() {
     gameOver = false;
     clearInterval(gameInterval);
 
-    // Mantiene lo stato del canvas, ma resetta la posizione del verme
     worm = [{ x: 10, y: 10 }];
     direction = 'right';
     powerUp = null;
@@ -554,10 +553,9 @@ canvas.addEventListener('touchmove', event => {
 
 canvas.addEventListener('touchend', handleSwipe);
 
-// NUOVO: Listener per il ridimensionamento della finestra
+// Listener per il ridimensionamento della finestra
 window.addEventListener('resize', () => {
     resizeCanvas();
-    // Non è necessario un initGame completo, ma bisogna rifare il disegno
     if (!gameOver) draw(); 
 });
 
