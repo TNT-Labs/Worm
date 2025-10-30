@@ -767,7 +767,7 @@ function handleKeyPress(event) {
     
     if (newDirection) {
         direction = newDirection;
-        **directionChanged = true;** // Imposta il flag per bloccare l'input rapido
+        directionChanged = true; // Imposta il flag per bloccare l'input rapido
     }
 }
 
