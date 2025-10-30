@@ -1,19 +1,19 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// RIFERIMENTI DOM PER LA SCHERMATA DI GAME OVER
+// RIFERIMENTI DOM
 const gameOverScreen = document.getElementById('gameOverScreen');
 const finalScoreElement = document.getElementById('finalScore');
 const highScoreDisplayElement = document.getElementById('highScoreDisplay');
 const restartButton = document.getElementById('restartButton');
 
-// RIFERIMENTI DOM PER LA CLASSIFICA (NUOVI)
+// RIFERIMENTI DOM PER LA CLASSIFICA
 const leaderboardList = document.getElementById('leaderboardList');
 const saveScoreSection = document.getElementById('saveScoreSection');
 const playerNameInput = document.getElementById('playerNameInput');
 const saveScoreButton = document.getElementById('saveScoreButton');
 
-// NOTA: gridSize viene calcolato dinamicamente in resizeCanvas()
+// VARIABILI PRINCIPALI DI GIOCO
 let gridSize = 20; 
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
@@ -22,36 +22,36 @@ let score = 0;
 let gameOver = false;
 
 // VARIABILI PER GLI ELEMENTI DI GIOCO
-let asteroids = []; 
+let asteroids = []; // Fissi
+let meteors = [];   // Mobili 
 let stars = []; 
 
-// VARIABILI PER LA VELOCITÀ ADATTIVA E IL TIMER
+// VARIABILI PER LA VELOCITÀ E IL TIMER
 let gameInterval;
 let gameSpeed = 150; 
 const initialGameSpeed = 150; 
 const speedDecrease = 5; 
 const speedThreshold = 3; 
 
-// VARIABILI E COSTANTI PER L'HIGH SCORE E LA CLASSIFICA (AGGIORNATE)
+// CLASSIFICA E HIGH SCORE
 let highScore = 0; 
 const HIGH_SCORE_KEY = 'wormDayHighScore'; 
 const LEADERBOARD_KEY = 'wormDayLeaderboard'; 
 const MAX_LEADERBOARD_ENTRIES = 5; 
 
-// VARIABILI PER LA GESTIONE DELLO SWIPE
+// GESTIONE INPUT TOUCH
 let touchStartX = 0;
 let touchStartY = 0;
 const minSwipeDistance = 10;
 
-// VARIABILI PER LO SFONDO ANIMATO
+// SFONDO ANIMATO
 const STAR_COUNT = 100;
 
-// VARIABILI PER IL POWER-UP 
+// POWER-UP 
 let powerUp = null;
 let isShieldActive = false;
 let shieldTimer = 0;
 const SHIELD_DURATION = 50; 
-
 let isSpeedBoostActive = false;
 let speedBoostTimer = 0;
 const SPEED_BOOST_DURATION = 30; 
@@ -59,13 +59,14 @@ let isSlowDownActive = false;
 let slowDownTimer = 0;
 const SLOW_DOWN_DURATION = 40; 
 
-// VARIABILI E COSTANTI PER I LIVELLI
+// LIVELLI E DIFFICOLTÀ
 let currentLevel = 1;
 const SCORE_TO_NEXT_LEVEL = 10;
 const ASTEROIDS_PER_LEVEL = 2;
+const METEORS_PER_LEVEL = 1;
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI UTILITÀ PER LA CLASSIFICA
+// FUNZIONI DI UTILITÀ PER LA CLASSIFICA (Invariate)
 // ----------------------------------------------------------------------
 
 function loadHighScore() {
@@ -93,7 +94,6 @@ function saveLeaderboard(leaderboard) {
 
 function displayLeaderboard() {
     let leaderboard = loadLeaderboard();
-    
     leaderboard.sort((a, b) => b.score - a.score);
     leaderboard = leaderboard.slice(0, MAX_LEADERBOARD_ENTRIES);
 
@@ -120,10 +120,9 @@ function displayLeaderboard() {
 }
 
 function savePlayerScore() {
-    // Trimma e limita il nome a 3 caratteri, default "AAA"
     const name = playerNameInput.value.trim().substring(0, 3).toUpperCase() || 'AAA';
     
-    if (score === 0) return; // Non salvare punteggi nulli
+    if (score === 0) return; 
 
     const newEntry = {
         score: score,
@@ -147,7 +146,7 @@ function savePlayerScore() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI GIOCO (Generate Position, Resize, Draw, etc.)
+// FUNZIONI DI GENERAZIONE (Migliorata: controllo meteore)
 // ----------------------------------------------------------------------
 
 function generateRandomSafePosition(ignoreList = []) {
@@ -164,14 +163,22 @@ function generateRandomSafePosition(ignoreList = []) {
 
         collision = false;
         
+        // 1. Controlla collisione con il Verme
         for (let segment of worm) {
             if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
         }
 
+        // 2. Controlla collisione con gli Asteroidi Fissi
         for (let asteroid of asteroids) {
             if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
         }
-
+        
+        // 3. Controlla collisione con le Meteore (MIGLIORAMENTO ROBUSTEZZA)
+        for (let meteor of meteors) {
+             if (Math.floor(meteor.x) === safePos.x && Math.floor(meteor.y) === safePos.y) collision = true;
+        }
+        
+        // 4. Controlla collisione con elementi nella lista di ignore
         for (let item of ignoreList) {
              if (item && item.x === safePos.x && item.y === safePos.y) collision = true;
         }
@@ -195,6 +202,60 @@ function generateAsteroids(count) {
     }
 }
 
+function generateMeteor() {
+    const entrySide = Math.floor(Math.random() * 4);
+    const gridWidth = canvas.width / gridSize;
+    const gridHeight = canvas.height / gridSize;
+    
+    let meteor = {};
+
+    // Definisce posizione iniziale e movimento
+    if (entrySide === 0) { // Entra dall'alto
+        meteor.x = Math.floor(Math.random() * gridWidth);
+        meteor.y = -1; 
+        meteor.dx = Math.random() * 0.2 - 0.1; 
+        meteor.dy = Math.random() * 0.1 + 0.1; 
+    } else if (entrySide === 1) { // Entra dal basso
+        meteor.x = Math.floor(Math.random() * gridWidth);
+        meteor.y = gridHeight; 
+        meteor.dx = Math.random() * 0.2 - 0.1; 
+        meteor.dy = -(Math.random() * 0.1 + 0.1); 
+    } else if (entrySide === 2) { // Entra da sinistra
+        meteor.x = -1; 
+        meteor.y = Math.floor(Math.random() * gridHeight);
+        meteor.dx = Math.random() * 0.1 + 0.1; 
+        meteor.dy = Math.random() * 0.2 - 0.1;
+    } else { // Entra da destra
+        meteor.x = gridWidth; 
+        meteor.y = Math.floor(Math.random() * gridHeight);
+        meteor.dx = -(Math.random() * 0.1 + 0.1); 
+        meteor.dy = Math.random() * 0.2 - 0.1;
+    }
+
+    meteor.x = meteor.x + 0.5; 
+    meteor.y = meteor.y + 0.5; 
+    
+    return meteor;
+}
+
+function generateMeteors(level) {
+    meteors = [];
+    const count = (level - 1) * METEORS_PER_LEVEL;
+    for (let i = 0; i < count; i++) {
+        meteors.push(generateMeteor());
+    }
+}
+
+function maybeGeneratePowerUp() {
+    if (Math.random() < 0.05 && powerUp === null) { 
+        const types = ['shield', 'speed', 'slow'];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        
+        powerUp = generateRandomSafePosition([food]);
+        powerUp.type = randomType;
+    }
+}
+
 function generateStars() {
     stars = [];
     const gridWidth = canvas.width;
@@ -210,37 +271,8 @@ function generateStars() {
     }
 }
 
-function maybeGeneratePowerUp() {
-    if (Math.random() < 0.05 && powerUp === null) { 
-        const types = ['shield', 'speed', 'slow'];
-        const randomType = types[Math.floor(Math.random() * types.length)];
-        
-        powerUp = generateRandomSafePosition([food]);
-        powerUp.type = randomType;
-    }
-}
-
-function resizeCanvas() {
-    const MAX_SIZE = 400; 
-    let size = window.innerWidth;
-    
-    size = Math.min(MAX_SIZE, size);
-    
-    const BLOCKS = 20; 
-    let newCanvasSize = Math.floor(size / BLOCKS) * BLOCKS;
-    
-    if (newCanvasSize < 200) newCanvasSize = 200; 
-
-    canvas.width = newCanvasSize;
-    canvas.height = newCanvasSize;
-    
-    gridSize = newCanvasSize / BLOCKS; 
-    
-    if (!gameOver) draw();
-}
-
 // ----------------------------------------------------------------------
-// FUNZIONE DRAW() - DISEGNO (Omessa per brevità, non contiene logica di bug)
+// FUNZIONE DRAW() - DISEGNO (Invariata)
 // ----------------------------------------------------------------------
 
 function draw() {
@@ -267,12 +299,23 @@ function draw() {
         ctx.fillRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
         ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
     }
+    
+    // 4. Disegna le Meteore Mobili
+    ctx.fillStyle = '#ff8800'; 
+    ctx.strokeStyle = '#ff0000'; 
+    for (let meteor of meteors) {
+        const renderX = meteor.x * gridSize - gridSize / 2;
+        const renderY = meteor.y * gridSize - gridSize / 2;
 
-    // 4. Disegna il Power-up
+        ctx.beginPath();
+        ctx.fillRect(renderX, renderY, gridSize, gridSize);
+        ctx.strokeRect(renderX, renderY, gridSize, gridSize);
+    }
+
+    // 5. Disegna il Power-up
     if (powerUp) {
         let color = '#00ffff'; 
         let strokeColor = 'white';
-
         if (powerUp.type === 'speed') {
             color = '#ff0000'; 
             strokeColor = 'yellow';
@@ -280,14 +323,13 @@ function draw() {
             color = '#00ff00'; 
             strokeColor = 'white';
         }
-        
         ctx.fillStyle = color; 
         ctx.strokeStyle = strokeColor;
         ctx.fillRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
         ctx.strokeRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
     }
     
-    // 5. DISEGNO DEL VERME
+    // 6. DISEGNO DEL VERME (Invariato)
     
     // Disegna il CORPO del verme
     ctx.fillStyle = '#00aaff';
@@ -333,7 +375,7 @@ function draw() {
     ctx.arc(indicatorX, indicatorY, indicatorSize, 0, Math.PI * 2);
     ctx.fill();
     
-    // 6. Effetto Scudo Attivo
+    // 7. Effetto Scudo Attivo
     if (isShieldActive) {
         ctx.strokeStyle = '#00ffff';
         ctx.lineWidth = 3;
@@ -344,7 +386,7 @@ function draw() {
         ctx.lineWidth = 1; 
     }
     
-    // 7. Disegna i Punteggi
+    // 8. Disegna i Punteggi
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
     ctx.fillText('Punti: ' + score, 10, 30);
@@ -353,30 +395,25 @@ function draw() {
     const textWidth = ctx.measureText(highScoreText).width;
     ctx.fillText(highScoreText, canvas.width - textWidth - 10, 30);
     
-    // 8. Disegna Livello
+    // 9. Disegna Livello
     ctx.fillText('Livello: ' + currentLevel, 10, 60);
 }
 
-
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO 
+// FUNZIONE UPDATE() - LOGICA DI GIOCO (Migliorata: Pulizia delle variabili)
 // ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
 
-    // ... (Gestione timer Power-up e Muovi stelle - Logica OK)
-
-    // 1. GESTIONE TIMER POWER-UP
+    // 1. GESTIONE TIMER POWER-UP (Invariata)
     if (isShieldActive) {
         shieldTimer--;
-        if (shieldTimer <= 0) {
-            isShieldActive = false;
-        }
+        if (shieldTimer <= 0) { isShieldActive = false; }
     }
     if (isSpeedBoostActive) {
         speedBoostTimer--;
-        if (speedBoostTimer <= 0) {
+        if (speedBoostTimer <= 0) { 
             isSpeedBoostActive = false;
             clearInterval(gameInterval);
             gameInterval = setInterval(update, gameSpeed);
@@ -384,32 +421,45 @@ function update() {
     }
     if (isSlowDownActive) {
         slowDownTimer--;
-        if (slowDownTimer <= 0) {
+        if (slowDownTimer <= 0) { 
             isSlowDownActive = false;
             clearInterval(gameInterval);
             gameInterval = setInterval(update, gameSpeed);
         }
     }
     
-    // 2. Muovi le stelle (Sfondo Animato)
-    const gridWidth = canvas.width;
-    const gridHeight = canvas.height;
+    // Calcola le dimensioni della griglia una sola volta
+    const gridWidth = canvas.width / gridSize;
+    const gridHeight = canvas.height / gridSize;
 
+    // 2. Muovi le stelle (Sfondo Animato)
     for (let star of stars) {
         star.x += star.speed;
         star.y += star.speed / 2;
 
-        if (star.x > gridWidth) {
-            star.x = 0;
-            star.y = Math.random() * gridHeight;
-        }
-        if (star.y > gridHeight) {
-            star.y = 0;
-            star.x = Math.random() * gridWidth;
+        if (star.x > canvas.width) { star.x = 0; star.y = Math.random() * canvas.height; }
+        if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
+    }
+    
+    // 3. Muovi e gestisci le meteore
+    for (let i = meteors.length - 1; i >= 0; i--) {
+        let m = meteors[i];
+        
+        m.x += m.dx;
+        m.y += m.dy;
+        
+        // Rimuovi le meteore fuori dallo schermo (e generane una nuova)
+        if (m.x < -1 || m.x > gridWidth + 1 || m.y < -1 || m.y > gridHeight + 1) {
+            meteors.splice(i, 1); 
+            
+            // Re-inserisci una nuova meteora se il livello lo prevede
+            if (currentLevel > 1) { 
+                meteors.push(generateMeteor());
+            }
         }
     }
 
-    // 3. Muovi il verme
+    // 4. Muovi il verme
     const head = { x: worm[0].x, y: worm[0].y };
 
     switch (direction) {
@@ -419,19 +469,38 @@ function update() {
         case 'right': head.x++; break;
     }
 
-    // 4. Controlla i bordi (Teletrasporto)
-    if (head.x < 0) head.x = (canvas.width / gridSize) - 1;
-    if (head.x >= (canvas.width / gridSize)) head.x = 0;
-    if (head.y < 0) head.y = (canvas.height / gridSize) - 1;
-    if (head.y >= (canvas.height / gridSize)) head.y = 0;
+    // 5. Controlla i bordi (Teletrasporto)
+    if (head.x < 0) head.x = gridWidth - 1;
+    if (head.x >= gridWidth) head.x = 0;
+    if (head.y < 0) head.y = gridHeight - 1;
+    if (head.y >= gridHeight) head.y = 0;
 
-    // 5. e 6. Collisioni (Asteroidi e Se Stesso)
+    // 6. Collisioni (Asteroidi Fissi e Meteore)
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
-            if (!isShieldActive) { gameOver = true; } 
-            else { asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y); break; }
+            if (!isShieldActive) { 
+                gameOver = true;
+            } else {
+                 asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
+                 break;
+            }
         }
     }
+    
+    // Collisione con le Meteore Mobili
+    for (let i = meteors.length - 1; i >= 0; i--) {
+        let m = meteors[i];
+        if (head.x === Math.floor(m.x) && head.y === Math.floor(m.y)) {
+            if (!isShieldActive) {
+                gameOver = true;
+                break; 
+            } else {
+                meteors.splice(i, 1); // Distruggi la meteora
+            }
+        }
+    }
+
+    // Collisione con se stesso
     for (let i = 1; i < worm.length; i++) {
         if (head.x === worm[i].x && head.y === worm[i].y) {
             if (!isShieldActive) { gameOver = true; }
@@ -439,13 +508,11 @@ function update() {
     }
 
 
-    // --- GESTIONE GAME OVER (FIX LOGICO: Punteggio > 0) ---
+    // --- GESTIONE GAME OVER ---
     if (gameOver) {
         clearInterval(gameInterval);
         
         let leaderboard = loadLeaderboard();
-
-        // Determina se il punteggio è abbastanza alto per la classifica (Top 5)
         const isHighEnough = leaderboard.length < MAX_LEADERBOARD_ENTRIES || score > leaderboard[leaderboard.length - 1].score;
 
         let isNewRecord = false;
@@ -458,7 +525,6 @@ function update() {
         finalScoreElement.textContent = score;
         highScoreDisplayElement.textContent = isNewRecord ? `${highScore} (Nuovo Record!)` : highScore;
         
-        // MOSTRA LA SEZIONE SALVATAGGIO SOLO SE TOP SCORE E PUNTEGGIO > 0
         if (isHighEnough && score > 0) { 
              saveScoreSection.classList.remove('hidden');
              playerNameInput.value = localStorage.getItem('lastPlayerName') || ''; 
@@ -467,15 +533,13 @@ function update() {
         }
         
         gameOverScreen.classList.remove('hidden');
-        
         displayLeaderboard();
         return;
     }
     // -------------------------
 
-    // 7. Controlla raccolta Power-up 
+    // 7. Controlla raccolta Power-up (Invariata)
     if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
-        // ... (Logica Power-up omessa per brevità)
         switch(powerUp.type) {
             case 'shield':
                 isShieldActive = true;
@@ -503,7 +567,7 @@ function update() {
 
     worm.unshift(head); 
 
-    // 8. Controlla se il verme ha mangiato il cibo 
+    // 8. Controlla se il verme ha mangiato il cibo (Logica Livello e Velocità)
     if (head.x === food.x && head.y === food.y) {
         score++;
         
@@ -517,7 +581,7 @@ function update() {
         generateFood(); 
         maybeGeneratePowerUp(); 
 
-        // LOGICA DI VELOCITÀ ADATTIVA (CON FIX)
+        // LOGICA DI VELOCITÀ ADATTIVA 
         if (score % speedThreshold === 0) {
             if (gameSpeed > 50) {
                 gameSpeed -= speedDecrease;
@@ -538,8 +602,27 @@ function update() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE INITGAME() / RESTART (Logica OK)
+// FUNZIONE INIT/RESTART E RIDIMENSIONAMENTO (Invariate)
 // ----------------------------------------------------------------------
+
+function resizeCanvas() {
+    const MAX_SIZE = 400; 
+    let size = window.innerWidth;
+    
+    size = Math.min(MAX_SIZE, size);
+    
+    const BLOCKS = 20; 
+    let newCanvasSize = Math.floor(size / BLOCKS) * BLOCKS;
+    
+    if (newCanvasSize < 200) newCanvasSize = 200; 
+
+    canvas.width = newCanvasSize;
+    canvas.height = newCanvasSize;
+    
+    gridSize = newCanvasSize / BLOCKS; 
+    
+    if (!gameOver) draw();
+}
 
 function partialGameRestart() {
     gameOver = false;
@@ -555,6 +638,7 @@ function partialGameRestart() {
     slowDownTimer = 0;
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
+    generateMeteors(currentLevel); 
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
@@ -582,6 +666,7 @@ function initGame() {
 
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
+    generateMeteors(currentLevel); 
     generateStars(); 
 
     draw();
@@ -589,7 +674,7 @@ function initGame() {
 }
 
 // ----------------------------------------------------------------------
-// GESTIONE INPUT (Completa di Swipe)
+// GESTIONE INPUT E LISTENER (Invariati)
 // ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
@@ -665,7 +750,7 @@ restartButton.addEventListener('click', () => {
     initGame();
 });
 
-// Event Listeners per lo Swipe sul Canvas (RIPRISTINATI)
+// Event Listeners per lo Swipe sul Canvas
 canvas.addEventListener('touchstart', event => {
     if (gameOver) return;
     touchStartX = event.touches[0].clientX;
