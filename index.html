@@ -8,7 +8,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="path/to/icon.png"> 
     <style>
-        /* CSS aggiuntivo per la classifica, se non hai un file style.css separato */
+        /* CSS aggiuntivo per la classifica */
         #leaderboard-container {
             width: 100%;
             max-width: 400px;
@@ -48,9 +48,44 @@
             cursor: pointer;
             border-radius: 3px;
         }
+        /* Indicatore Power-up */
+        #powerUpIndicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 5px;
+            padding: 10px;
+            min-width: 150px;
+            display: none;
+        }
+        #powerUpIndicator.active {
+            display: block;
+        }
+        #powerUpBar {
+            width: 100%;
+            height: 10px;
+            background: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        #powerUpBarFill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            transition: width 0.1s linear;
+        }
     </style>
 </head>
 <body>
+    <div id="powerUpIndicator">
+        <div id="powerUpText">Power-up attivo</div>
+        <div id="powerUpBar">
+            <div id="powerUpBarFill" style="width: 100%"></div>
+        </div>
+    </div>
+
     <div id="game-container">
         <canvas id="gameCanvas" width="400" height="400"></canvas>
         
@@ -85,7 +120,7 @@
     <div id="leaderboard-container">
         <h3>🏆 Classifica Locale Top 5 🏆</h3>
         <ol id="leaderboardList">
-            </ol>
+        </ol>
     </div>
     
     <script src="script.js"></script>
