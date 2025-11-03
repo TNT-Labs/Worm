@@ -6,8 +6,6 @@ const gameOverScreen = document.getElementById('gameOverScreen');
 const finalScoreElement = document.getElementById('finalScore');
 const highScoreDisplayElement = document.getElementById('highScoreDisplay');
 const restartButton = document.getElementById('restartButton');
-
-// RIFERIMENTI DOM PER LA CLASSIFICA
 const leaderboardList = document.getElementById('leaderboardList');
 const saveScoreSection = document.getElementById('saveScoreSection');
 const playerNameInput = document.getElementById('playerNameInput');
@@ -18,7 +16,7 @@ let gridSize = 20;
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
 let direction = 'right'; 
-let directionChanged = false; // NUOVO: Flag per bloccare l'input rapido
+let directionChanged = false; // Flag per bloccare l'input rapido
 let score = 0;
 let gameOver = false;
 
@@ -68,7 +66,83 @@ const ASTEROIDS_PER_LEVEL = 2;
 const METEORS_PER_LEVEL = 1;
 
 // ----------------------------------------------------------------------
-// FUNZIONI DI UTILITÀ PER LA CLASSIFICA (Invariate)
+// GESTIONE SPRITE IMMAGINI
+// ----------------------------------------------------------------------
+
+let spriteImages = {};
+let imagesLoaded = 0;
+const totalImages = 8;
+const IMAGE_PATHS = {
+    wormHead: './assets/images/worm_head.png',
+    wormBody: './assets/images/worm_body.png',
+    starFood: './assets/images/star_food.png',
+    asteroidStatic: './assets/images/asteroids_static.png',
+    meteorMobile: './assets/images/meteor_mobile.png',
+    powerUpShield: './assets/images/powerup_shield.png',
+    powerUpSpeed: './assets/images/powerup_speed.png',
+    powerUpSlow: './assets/images/powerup_slow.png'
+};
+
+// ----------------------------------------------------------------------
+// GESTIONE AUDIO
+// ----------------------------------------------------------------------
+
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioBuffers = {};
+let bgmSource = null;
+
+const AUDIO_PATHS = {
+    eat: './assets/audio/sfx_eat.mp3',
+    gameOver: './assets/audio/sfx_game_over.mp3',
+    bgm: './assets/audio/bgm_loop.mp3'
+};
+
+async function loadAudio(url, key) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        const arrayBuffer = await response.arrayBuffer();
+        audioBuffers[key] = await audioContext.decodeAudioData(arrayBuffer);
+    } catch (e) {
+        console.error(`Errore nel caricamento o decoding dell'audio ${key} (${url}):`, e);
+    }
+}
+
+function playSound(key, loop = false, volume = 1.0) {
+    if (!audioBuffers[key] || audioContext.state === 'suspended') return null;
+
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffers[key];
+    source.loop = loop;
+    
+    const gainNode = audioContext.createGain();
+    gainNode.gain.value = volume;
+
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    source.start(0);
+    return source;
+}
+
+function stopBGM() {
+    if (bgmSource) {
+        bgmSource.stop();
+        bgmSource = null;
+    }
+}
+
+// Funzione helper per sbloccare l'audio su mobile
+function resumeAudioContext() {
+    if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+            console.log('AudioContext ripristinato.');
+        });
+    }
+}
+
+// ----------------------------------------------------------------------
+// FUNZIONI DI UTILITÀ PER LA CLASSIFICA
 // ----------------------------------------------------------------------
 
 function loadHighScore() {
@@ -148,7 +222,7 @@ function savePlayerScore() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONI GENERAZIONE OGGETTI (Invariate)
+// FUNZIONI GENERAZIONE OGGETTI
 // ----------------------------------------------------------------------
 
 function generateRandomSafePosition(ignoreList = []) {
@@ -211,22 +285,22 @@ function generateMeteor() {
     
     let meteor = {};
 
-    if (entrySide === 0) { 
+    if (entrySide === 0) { // Entra dall'alto
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = -1; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = Math.random() * 0.1 + 0.1; 
-    } else if (entrySide === 1) { 
+    } else if (entrySide === 1) { // Entra dal basso
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = gridHeight; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = -(Math.random() * 0.1 + 0.1); 
-    } else if (entrySide === 2) { 
+    } else if (entrySide === 2) { // Entra da sinistra
         meteor.x = -1; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = Math.random() * 0.1 + 0.1; 
         meteor.dy = Math.random() * 0.2 - 0.1;
-    } else { 
+    } else { // Entra da destra
         meteor.x = gridWidth; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = -(Math.random() * 0.1 + 0.1); 
@@ -273,7 +347,7 @@ function generateStars() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONI PARTICELLE (Invariate)
+// FUNZIONI PARTICELLE
 // ----------------------------------------------------------------------
 
 function createParticles(x, y, count, color, type) {
@@ -294,10 +368,19 @@ function createParticles(x, y, count, color, type) {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE DRAW() - DISEGNO (Invariata)
+// FUNZIONE DRAW() - DISEGNO (Aggiornata per Sprite)
 // ----------------------------------------------------------------------
 
 function draw() {
+    const totalAudioResources = Object.keys(AUDIO_PATHS).length;
+    // Check di caricamento per Immagini e Audio
+    if (imagesLoaded < totalImages || Object.keys(audioBuffers).length < totalAudioResources) {
+        ctx.fillStyle = 'white';
+        ctx.font = '24px Arial';
+        ctx.fillText('Caricamento risorse...', canvas.width / 2 - 100, canvas.height / 2);
+        return;
+    }
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
     // 1. Disegna le Stelle (Sfondo Animato)
@@ -308,94 +391,50 @@ function draw() {
         ctx.fill();
     }
     
-    // 2. Disegna il Cibo
-    ctx.fillStyle = 'yellow';
-    ctx.beginPath();
-    ctx.arc(food.x * gridSize + gridSize / 2, food.y * gridSize + gridSize / 2, gridSize / 3, 0, Math.PI * 2);
-    ctx.fill();
+    // 2. Disegna il Cibo (Sprite)
+    const foodImg = spriteImages.starFood;
+    ctx.drawImage(foodImg, food.x * gridSize, food.y * gridSize, gridSize, gridSize);
 
-    // 3. Disegna gli Asteroidi Fissi
-    ctx.fillStyle = '#666666';
-    ctx.strokeStyle = '#444444'; 
+    // 3. Disegna gli Asteroidi Fissi (Sprite)
+    const asteroidImg = spriteImages.asteroidStatic;
     for (let asteroid of asteroids) {
-        ctx.fillRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
-        ctx.strokeRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
+        ctx.drawImage(asteroidImg, asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
     }
     
-    // 4. Disegna le Meteore Mobili
-    ctx.fillStyle = '#ff8800'; 
-    ctx.strokeStyle = '#ff0000'; 
+    // 4. Disegna le Meteore Mobili (Sprite)
+    const meteorImg = spriteImages.meteorMobile;
     for (let meteor of meteors) {
         const renderX = meteor.x * gridSize - gridSize / 2;
         const renderY = meteor.y * gridSize - gridSize / 2;
-
-        ctx.beginPath();
-        ctx.fillRect(renderX, renderY, gridSize, gridSize);
-        ctx.strokeRect(renderX, renderY, gridSize, gridSize);
+        ctx.drawImage(meteorImg, renderX, renderY, gridSize, gridSize);
     }
 
-    // 5. Disegna il Power-up
+    // 5. Disegna il Power-up (Sprite)
     if (powerUp) {
-        let color = '#00ffff'; 
-        let strokeColor = 'white';
-        if (powerUp.type === 'speed') {
-            color = '#ff0000'; 
-            strokeColor = 'yellow';
-        } else if (powerUp.type === 'slow') {
-            color = '#00ff00'; 
-            strokeColor = 'white';
+        let powerUpImg;
+        switch (powerUp.type) {
+            case 'shield': powerUpImg = spriteImages.powerUpShield; break;
+            case 'speed': powerUpImg = spriteImages.powerUpSpeed; break;
+            case 'slow': powerUpImg = spriteImages.powerUpSlow; break;
         }
-        ctx.fillStyle = color; 
-        ctx.strokeStyle = strokeColor;
-        ctx.fillRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
-        ctx.strokeRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
+        ctx.drawImage(powerUpImg, powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
     }
     
-    // 6. DISEGNO DEL VERME
+    // 6. DISEGNO DEL VERME (Sprite)
     
     // Disegna il CORPO del verme
-    ctx.fillStyle = '#00aaff';
-    ctx.strokeStyle = '#006699';
+    const bodyImg = spriteImages.wormBody;
     for (let i = 1; i < worm.length; i++) {
-        ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
-        ctx.strokeRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
+        ctx.drawImage(bodyImg, worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
     }
 
     // Disegna la TESTA DISTINTIVA (indice 0)
     const head = worm[0];
     const headX = head.x * gridSize;
     const headY = head.y * gridSize;
-
-    ctx.fillStyle = '#00eaff'; 
-    ctx.fillRect(headX, headY, gridSize, gridSize);
-    ctx.strokeStyle = '#006699'; 
-    ctx.strokeRect(headX, headY, gridSize, gridSize);
-
-    // Disegna l'Indicatore di direzione (Occhio/Punta)
-    ctx.fillStyle = '#ffcc00';
-
-    let indicatorX = headX + gridSize / 2;
-    let indicatorY = headY + gridSize / 2;
-    let indicatorSize = gridSize / 5;
-
-    switch (direction) {
-        case 'up':
-            indicatorY = headY + indicatorSize;
-            break;
-        case 'down':
-            indicatorY = headY + gridSize - indicatorSize;
-            break;
-        case 'left':
-            indicatorX = headX + indicatorSize;
-            break;
-        case 'right':
-            indicatorX = headX + gridSize - indicatorSize;
-            break;
-    }
-
-    ctx.beginPath();
-    ctx.arc(indicatorX, indicatorY, indicatorSize, 0, Math.PI * 2);
-    ctx.fill();
+    const headImg = spriteImages.wormHead;
+    
+    ctx.drawImage(headImg, headX, headY, gridSize, gridSize);
     
     // 7. Effetto Scudo Attivo
     if (isShieldActive) {
@@ -411,12 +450,9 @@ function draw() {
     // 8. Disegna le Particelle 
     for (const p of particles) {
         const opacity = p.life / p.originalLife; 
-        
         ctx.fillStyle = `rgba(${p.color}, ${opacity})`;
-
         const renderX = p.x * gridSize;
         const renderY = p.y * gridSize;
-
         ctx.beginPath();
         ctx.arc(renderX, renderY, p.size / 2, 0, Math.PI * 2); 
         ctx.fill();
@@ -662,7 +698,7 @@ function update() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE INIT/RESTART E RIDIMENSIONAMENTO (Invariate)
+// FUNZIONE INIT/RESTART E CARICAMENTO RISORSE
 // ----------------------------------------------------------------------
 
 function resizeCanvas() {
@@ -701,14 +737,54 @@ function partialGameRestart() {
     generateFood(); 
     generateAsteroids(calculateAsteroidCount()); 
     generateMeteors(currentLevel); 
+    
+    stopBGM();
+    bgmSource = playSound('bgm', true, 0.4); // Riavvia BGM
+    
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
 
-function initGame() {
+// Funzione di pre-caricamento delle immagini
+function preloadImages() {
+    return new Promise(resolve => {
+        let loadedCount = 0;
+        const keys = Object.keys(IMAGE_PATHS);
+
+        keys.forEach(key => {
+            const img = new Image();
+            img.onload = () => {
+                loadedCount++;
+                spriteImages[key] = img;
+                imagesLoaded = loadedCount;
+                if (loadedCount === totalImages) { resolve(); }
+            };
+            img.onerror = () => {
+                console.error(`Errore nel caricamento dell'immagine: ${IMAGE_PATHS[key]}. Controlla il percorso.`);
+                loadedCount++;
+                imagesLoaded = loadedCount; 
+                if (loadedCount === totalImages) { resolve(); }
+            };
+            img.src = IMAGE_PATHS[key];
+        });
+        if (totalImages === 0) resolve();
+    });
+}
+
+async function initGame() {
+    resumeAudioContext(); // Tenta di sbloccare l'audio
     resizeCanvas(); 
+    
+    // Caricamento asincrono delle risorse
+    const loadAudioPromises = Object.keys(AUDIO_PATHS).map(key => loadAudio(AUDIO_PATHS[key], key));
+    await Promise.all([preloadImages(), ...loadAudioPromises]); 
+
     loadHighScore(); 
     displayLeaderboard(); 
+
+    // Avvia la musica di sottofondo
+    if (bgmSource) stopBGM(); 
+    bgmSource = playSound('bgm', true, 0.4); 
 
     currentLevel = 1;
     gameSpeed = initialGameSpeed; 
@@ -738,11 +814,11 @@ function initGame() {
 }
 
 // ----------------------------------------------------------------------
-// GESTIONE INPUT E LISTENER (Corretta: Buffer di Input)
+// GESTIONE INPUT E LISTENER
 // ----------------------------------------------------------------------
 
 function handleKeyPress(event) {
-    if (gameOver || directionChanged) return; // BLOCCO AGGIUNTO
+    if (gameOver || directionChanged) return;
     const keyPressed = event.key;
     let newDirection = null;
 
@@ -767,12 +843,13 @@ function handleKeyPress(event) {
     
     if (newDirection) {
         direction = newDirection;
-        directionChanged = true; // Imposta il flag per bloccare l'input rapido
+        directionChanged = true; 
     }
+    resumeAudioContext(); 
 }
 
 function handleButtonClick(newDirection) {
-    if (gameOver || directionchanged) return; // BLOCCO AGGIUNTO
+    if (gameOver || directionChanged) return;
     let changed = false;
 
     if (newDirection === 'up' && direction !== 'down') {
@@ -789,13 +866,15 @@ function handleButtonClick(newDirection) {
     }
 
     if (changed) {
-        directionChanged = true; // Imposta il flag per bloccare l'input rapido
+        directionChanged = true; 
     }
+    resumeAudioContext(); 
 }
 
 function handleSwipe(event) {
-    if (gameOver) return; // Non blocchiamo qui, lo fa handleButtonClick
-    
+    if (gameOver) return;
+    resumeAudioContext(); 
+
     if (event.changedTouches.length === 0) return;
     
     const touchEndX = event.changedTouches[0].clientX;
