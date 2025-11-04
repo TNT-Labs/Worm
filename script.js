@@ -11,27 +11,33 @@ const saveScoreSection = document.getElementById('saveScoreSection');
 const playerNameInput = document.getElementById('playerNameInput');
 const saveScoreButton = document.getElementById('saveScoreButton');
 
+// Riferimenti DOM per Power-up Indicator (se esistono nell'HTML)
+const powerUpIndicator = document.getElementById('powerUpIndicator');
+const powerUpText = document.getElementById('powerUpText');
+const powerUpBarFill = document.getElementById('powerUpBarFill');
+
 // VARIABILI PRINCIPALI DI GIOCO
 let gridSize = 20; 
 let worm = [{ x: 10, y: 10 }]; 
 let food = {}; 
 let direction = 'right'; 
-let directionChanged = false; // Flag per bloccare l'input rapido
+let directionChanged = false;
 let score = 0;
 let gameOver = false;
 
 // VARIABILI PER GLI ELEMENTI DI GIOCO
-let asteroids = []; // Fissi
-let meteors = [];   // Mobili 
-let particles = []; // Particelle per effetti visivi
-let stars = []; 
+let asteroids = [];
+let meteors = [];
+let particles = [];
+let stars = [];
 
 // VARIABILI PER LA VELOCITÀ E IL TIMER
 let gameInterval;
 let gameSpeed = 150; 
 const initialGameSpeed = 150; 
 const speedDecrease = 5; 
-const speedThreshold = 3; 
+const speedThreshold = 3;
+const MIN_GAME_SPEED = 50;
 
 // CLASSIFICA E HIGH SCORE
 let highScore = 0; 
@@ -57,13 +63,17 @@ let speedBoostTimer = 0;
 const SPEED_BOOST_DURATION = 30; 
 let isSlowDownActive = false;
 let slowDownTimer = 0;
-const SLOW_DOWN_DURATION = 40; 
+const SLOW_DOWN_DURATION = 40;
+const MAX_PARTICLES = 200;
 
 // LIVELLI E DIFFICOLTÀ
 let currentLevel = 1;
 const SCORE_TO_NEXT_LEVEL = 10;
 const ASTEROIDS_PER_LEVEL = 2;
 const METEORS_PER_LEVEL = 1;
+
+// STATO CARICAMENTO
+let resourcesLoaded = false;
 
 // ----------------------------------------------------------------------
 // GESTIONE SPRITE IMMAGINI
@@ -104,7 +114,8 @@ async function loadAudio(url, key) {
         const arrayBuffer = await response.arrayBuffer();
         audioBuffers[key] = await audioContext.decodeAudioData(arrayBuffer);
     } catch (e) {
-        console.error(`Errore nel caricamento o decoding dell'audio ${key} (${url}):`, e);
+        console.warn(`Audio ${key} non disponibile (${url}). Il gioco continuerà senza questo suono.`);
+        audioBuffers[key] = null;
     }
 }
 
@@ -127,12 +138,15 @@ function playSound(key, loop = false, volume = 1.0) {
 
 function stopBGM() {
     if (bgmSource) {
-        bgmSource.stop();
+        try {
+            bgmSource.stop();
+        } catch(e) {
+            // Ignora errori se già fermato
+        }
         bgmSource = null;
     }
 }
 
-// Funzione helper per sbloccare l'audio su mobile
 function resumeAudioContext() {
     if (audioContext.state === 'suspended') {
         audioContext.resume().then(() => {
@@ -230,8 +244,11 @@ function generateRandomSafePosition(ignoreList = []) {
     const gridHeight = canvas.height / gridSize;
     let safePos = {};
     let collision = true;
+    let attempts = 0;
+    const maxAttempts = 1000;
 
-    while (collision) {
+    while (collision && attempts < maxAttempts) {
+        attempts++;
         safePos = {
             x: Math.floor(Math.random() * gridWidth),
             y: Math.floor(Math.random() * gridHeight)
@@ -239,24 +256,38 @@ function generateRandomSafePosition(ignoreList = []) {
 
         collision = false;
         
-        // 1. Controlla collisione con il Verme
         for (let segment of worm) {
-            if (segment.x === safePos.x && segment.y === safePos.y) collision = true;
+            if (segment.x === safePos.x && segment.y === safePos.y) {
+                collision = true;
+                break;
+            }
         }
 
-        // 2. Controlla collisione con gli Asteroidi Fissi
-        for (let asteroid of asteroids) {
-            if (asteroid.x === safePos.x && asteroid.y === safePos.y) collision = true;
+        if (!collision) {
+            for (let asteroid of asteroids) {
+                if (asteroid.x === safePos.x && asteroid.y === safePos.y) {
+                    collision = true;
+                    break;
+                }
+            }
         }
         
-        // 3. Controlla collisione con le Meteore
-        for (let meteor of meteors) {
-             if (Math.floor(meteor.x) === safePos.x && Math.floor(meteor.y) === safePos.y) collision = true;
+        if (!collision) {
+            for (let meteor of meteors) {
+                if (Math.floor(meteor.x) === safePos.x && Math.floor(meteor.y) === safePos.y) {
+                    collision = true;
+                    break;
+                }
+            }
         }
         
-        // 4. Controlla collisione con elementi nella lista di ignore
-        for (let item of ignoreList) {
-             if (item && item.x === safePos.x && item.y === safePos.y) collision = true;
+        if (!collision) {
+            for (let item of ignoreList) {
+                if (item && item.x === safePos.x && item.y === safePos.y) {
+                    collision = true;
+                    break;
+                }
+            }
         }
     }
     return safePos;
@@ -285,22 +316,22 @@ function generateMeteor() {
     
     let meteor = {};
 
-    if (entrySide === 0) { // Entra dall'alto
+    if (entrySide === 0) {
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = -1; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = Math.random() * 0.1 + 0.1; 
-    } else if (entrySide === 1) { // Entra dal basso
+    } else if (entrySide === 1) {
         meteor.x = Math.floor(Math.random() * gridWidth);
         meteor.y = gridHeight; 
         meteor.dx = Math.random() * 0.2 - 0.1; 
         meteor.dy = -(Math.random() * 0.1 + 0.1); 
-    } else if (entrySide === 2) { // Entra da sinistra
+    } else if (entrySide === 2) {
         meteor.x = -1; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = Math.random() * 0.1 + 0.1; 
         meteor.dy = Math.random() * 0.2 - 0.1;
-    } else { // Entra da destra
+    } else {
         meteor.x = gridWidth; 
         meteor.y = Math.floor(Math.random() * gridHeight);
         meteor.dx = -(Math.random() * 0.1 + 0.1); 
@@ -351,6 +382,10 @@ function generateStars() {
 // ----------------------------------------------------------------------
 
 function createParticles(x, y, count, color, type) {
+    if (particles.length > MAX_PARTICLES) {
+        particles.splice(0, particles.length - MAX_PARTICLES);
+    }
+
     for (let i = 0; i < count; i++) {
         const particle = {
             x: x + 0.5, 
@@ -368,22 +403,107 @@ function createParticles(x, y, count, color, type) {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE DRAW() - DISEGNO (Aggiornata per Sprite)
+// AGGIORNAMENTO INDICATORE POWER-UP
+// ----------------------------------------------------------------------
+
+function updatePowerUpIndicator() {
+    if (!powerUpIndicator) return;
+
+    let active = false;
+    let percentage = 0;
+    let text = '';
+    let maxTimer = 0;
+    let currentTimer = 0;
+
+    if (isShieldActive) {
+        active = true;
+        text = '🛡️ Scudo Attivo';
+        currentTimer = shieldTimer;
+        maxTimer = SHIELD_DURATION;
+    } else if (isSpeedBoostActive) {
+        active = true;
+        text = '⚡ Turbo Attivo';
+        currentTimer = speedBoostTimer;
+        maxTimer = SPEED_BOOST_DURATION;
+    } else if (isSlowDownActive) {
+        active = true;
+        text = '🐌 Rallentamento';
+        currentTimer = slowDownTimer;
+        maxTimer = SLOW_DOWN_DURATION;
+    }
+
+    if (active) {
+        powerUpIndicator.classList.add('active');
+        if (powerUpText) powerUpText.textContent = text;
+        percentage = (currentTimer / maxTimer) * 100;
+        if (powerUpBarFill) powerUpBarFill.style.width = percentage + '%';
+    } else {
+        powerUpIndicator.classList.remove('active');
+    }
+}
+
+// ----------------------------------------------------------------------
+// NOTIFICA LEVEL UP
+// ----------------------------------------------------------------------
+
+function showLevelUpNotification() {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px 50px;
+        border-radius: 15px;
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 1000;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        animation: fadeInOut 2s ease-in-out;
+    `;
+    notification.textContent = `🎉 Livello ${currentLevel}! Nuovi pericoli!`;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+        }
+    `;
+    
+    if (!document.querySelector('style[data-levelup]')) {
+        style.setAttribute('data-levelup', 'true');
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 2000);
+}
+
+// ----------------------------------------------------------------------
+// FUNZIONE DRAW() - DISEGNO
 // ----------------------------------------------------------------------
 
 function draw() {
-    const totalAudioResources = Object.keys(AUDIO_PATHS).length;
-    // Check di caricamento per Immagini e Audio
-    if (imagesLoaded < totalImages || Object.keys(audioBuffers).length < totalAudioResources) {
+    if (!resourcesLoaded) {
         ctx.fillStyle = 'white';
         ctx.font = '24px Arial';
-        ctx.fillText('Caricamento risorse...', canvas.width / 2 - 100, canvas.height / 2);
+        ctx.textAlign = 'center';
+        ctx.fillText('Caricamento risorse...', canvas.width / 2, canvas.height / 2);
+        ctx.textAlign = 'left';
         return;
     }
     
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
-    // 1. Disegna le Stelle (Sfondo Animato)
+    // 1. Disegna le Stelle
     ctx.fillStyle = 'white';
     for (let star of stars) {
         ctx.beginPath();
@@ -391,25 +511,40 @@ function draw() {
         ctx.fill();
     }
     
-    // 2. Disegna il Cibo (Sprite)
+    // 2. Disegna il Cibo
     const foodImg = spriteImages.starFood;
-    ctx.drawImage(foodImg, food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+    if (foodImg) {
+        ctx.drawImage(foodImg, food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+    } else {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+    }
 
-    // 3. Disegna gli Asteroidi Fissi (Sprite)
+    // 3. Disegna gli Asteroidi Fissi
     const asteroidImg = spriteImages.asteroidStatic;
     for (let asteroid of asteroids) {
-        ctx.drawImage(asteroidImg, asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
+        if (asteroidImg) {
+            ctx.drawImage(asteroidImg, asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
+        } else {
+            ctx.fillStyle = '#444';
+            ctx.fillRect(asteroid.x * gridSize, asteroid.y * gridSize, gridSize, gridSize);
+        }
     }
     
-    // 4. Disegna le Meteore Mobili (Sprite)
+    // 4. Disegna le Meteore Mobili
     const meteorImg = spriteImages.meteorMobile;
     for (let meteor of meteors) {
         const renderX = meteor.x * gridSize - gridSize / 2;
         const renderY = meteor.y * gridSize - gridSize / 2;
-        ctx.drawImage(meteorImg, renderX, renderY, gridSize, gridSize);
+        if (meteorImg) {
+            ctx.drawImage(meteorImg, renderX, renderY, gridSize, gridSize);
+        } else {
+            ctx.fillStyle = 'orange';
+            ctx.fillRect(renderX, renderY, gridSize, gridSize);
+        }
     }
 
-    // 5. Disegna il Power-up (Sprite)
+    // 5. Disegna il Power-up
     if (powerUp) {
         let powerUpImg;
         switch (powerUp.type) {
@@ -417,24 +552,36 @@ function draw() {
             case 'speed': powerUpImg = spriteImages.powerUpSpeed; break;
             case 'slow': powerUpImg = spriteImages.powerUpSlow; break;
         }
-        ctx.drawImage(powerUpImg, powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
+        if (powerUpImg) {
+            ctx.drawImage(powerUpImg, powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
+        } else {
+            ctx.fillStyle = powerUp.type === 'shield' ? 'cyan' : powerUp.type === 'speed' ? 'red' : 'green';
+            ctx.fillRect(powerUp.x * gridSize, powerUp.y * gridSize, gridSize, gridSize);
+        }
     }
     
-    // 6. DISEGNO DEL VERME (Sprite)
-    
-    // Disegna il CORPO del verme
+    // 6. DISEGNO DEL VERME
     const bodyImg = spriteImages.wormBody;
     for (let i = 1; i < worm.length; i++) {
-        ctx.drawImage(bodyImg, worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
+        if (bodyImg) {
+            ctx.drawImage(bodyImg, worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
+        } else {
+            ctx.fillStyle = 'lime';
+            ctx.fillRect(worm[i].x * gridSize, worm[i].y * gridSize, gridSize, gridSize);
+        }
     }
 
-    // Disegna la TESTA DISTINTIVA (indice 0)
     const head = worm[0];
     const headX = head.x * gridSize;
     const headY = head.y * gridSize;
     const headImg = spriteImages.wormHead;
     
-    ctx.drawImage(headImg, headX, headY, gridSize, gridSize);
+    if (headImg) {
+        ctx.drawImage(headImg, headX, headY, gridSize, gridSize);
+    } else {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(headX, headY, gridSize, gridSize);
+    }
     
     // 7. Effetto Scudo Attivo
     if (isShieldActive) {
@@ -472,19 +619,20 @@ function draw() {
 }
 
 // ----------------------------------------------------------------------
-// FUNZIONE UPDATE() - LOGICA DI GIOCO (Corretta: Input e Pulizia)
+// FUNZIONE UPDATE() - LOGICA DI GIOCO
 // ----------------------------------------------------------------------
 
 function update() {
     if (gameOver) return;
     
-    // CORREZIONE BUG A: Resetta il flag di cambio direzione per il frame corrente
     directionChanged = false; 
 
     // 1. GESTIONE TIMER POWER-UP
     if (isShieldActive) {
         shieldTimer--;
-        if (shieldTimer <= 0) { isShieldActive = false; }
+        if (shieldTimer <= 0) { 
+            isShieldActive = false; 
+        }
     }
     if (isSpeedBoostActive) {
         speedBoostTimer--;
@@ -502,8 +650,10 @@ function update() {
             gameInterval = setInterval(update, gameSpeed);
         }
     }
+
+    updatePowerUpIndicator();
     
-    // 1b. Muovi e gestisci la vita delle particelle
+    // 2. Muovi e gestisci la vita delle particelle
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
@@ -520,11 +670,10 @@ function update() {
         }
     }
 
-    // MIGLIORAMENTO C: Calcola le dimensioni della griglia una sola volta
     const gridWidth = canvas.width / gridSize;
     const gridHeight = canvas.height / gridSize;
 
-    // 2. Muovi le stelle (Sfondo Animato)
+    // 3. Muovi le stelle
     for (let star of stars) {
         star.x += star.speed;
         star.y += star.speed / 2;
@@ -533,7 +682,7 @@ function update() {
         if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
     }
     
-    // 3. Muovi e gestisci le meteore
+    // 4. Muovi e gestisci le meteore
     for (let i = meteors.length - 1; i >= 0; i--) {
         let m = meteors[i];
         
@@ -549,7 +698,7 @@ function update() {
         }
     }
 
-    // 4. Muovi il verme
+    // 5. Muovi il verme
     const head = { x: worm[0].x, y: worm[0].y };
 
     switch (direction) {
@@ -559,20 +708,20 @@ function update() {
         case 'right': head.x++; break;
     }
 
-    // 5. Controlla i bordi (Teletrasporto)
+    // 6. Controlla i bordi (Teletrasporto)
     if (head.x < 0) head.x = gridWidth - 1;
     if (head.x >= gridWidth) head.x = 0;
     if (head.y < 0) head.y = gridHeight - 1;
     if (head.y >= gridHeight) head.y = 0;
 
-    // 6. Collisioni
+    // 7. Collisioni
     for (let asteroid of asteroids) {
         if (head.x === asteroid.x && head.y === asteroid.y) {
             if (!isShieldActive) { 
                 gameOver = true;
             } else {
-                 asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
-                 break;
+                asteroids = asteroids.filter(a => a.x !== asteroid.x || a.y !== asteroid.y);
+                break;
             }
         }
     }
@@ -595,8 +744,7 @@ function update() {
         }
     }
 
-
-    // --- GESTIONE GAME OVER ---
+    // GESTIONE GAME OVER
     if (gameOver) {
         const crashX = worm[0].x;
         const crashY = worm[0].y;
@@ -605,6 +753,8 @@ function update() {
         createParticles(crashX, crashY, 40, '100, 100, 100', 'explosion'); 
         
         clearInterval(gameInterval);
+        stopBGM();
+        playSound('gameOver');
         
         let leaderboard = loadLeaderboard();
         const isHighEnough = leaderboard.length < MAX_LEADERBOARD_ENTRIES || score > leaderboard[leaderboard.length - 1].score;
@@ -620,19 +770,18 @@ function update() {
         highScoreDisplayElement.textContent = isNewRecord ? `${highScore} (Nuovo Record!)` : highScore;
         
         if (isHighEnough && score > 0) { 
-             saveScoreSection.classList.remove('hidden');
-             playerNameInput.value = localStorage.getItem('lastPlayerName') || ''; 
+            saveScoreSection.classList.remove('hidden');
+            playerNameInput.value = localStorage.getItem('lastPlayerName') || ''; 
         } else {
-             saveScoreSection.classList.add('hidden');
+            saveScoreSection.classList.add('hidden');
         }
         
         gameOverScreen.classList.remove('hidden');
         displayLeaderboard();
         return;
     }
-    // -------------------------
 
-    // 7. Controlla raccolta Power-up
+    // 8. Controlla raccolta Power-up
     if (powerUp && head.x === powerUp.x && head.y === powerUp.y) {
         switch(powerUp.type) {
             case 'shield':
@@ -657,19 +806,22 @@ function update() {
                 break;
         }
         powerUp = null; 
+        updatePowerUpIndicator();
     }
 
     worm.unshift(head); 
 
-    // 8. Controlla se il verme ha mangiato il cibo 
+    // 9. Controlla se il verme ha mangiato il cibo 
     if (head.x === food.x && head.y === food.y) {
         score++;
+        
+        playSound('eat', false, 0.5);
         
         createParticles(food.x, food.y, 40, '255, 255, 0', 'eat'); 
         
         if (score % SCORE_TO_NEXT_LEVEL === 0 && score > 0) {
             currentLevel++;
-            alert(`Livello ${currentLevel} raggiunto! Nuovi pericoli ti aspettano!`);
+            showLevelUpNotification();
             partialGameRestart();
             return; 
         }
@@ -677,11 +829,10 @@ function update() {
         generateFood(); 
         maybeGeneratePowerUp(); 
 
-        // LOGICA DI VELOCITÀ ADATTIVA 
         if (score % speedThreshold === 0) {
-            if (gameSpeed > 50) {
+            if (gameSpeed > MIN_GAME_SPEED) {
                 gameSpeed -= speedDecrease;
-                if (gameSpeed < 50) gameSpeed = 50; 
+                if (gameSpeed < MIN_GAME_SPEED) gameSpeed = MIN_GAME_SPEED; 
                 
                 if (!isSpeedBoostActive && !isSlowDownActive) {
                     clearInterval(gameInterval);
@@ -703,7 +854,7 @@ function update() {
 
 function resizeCanvas() {
     const MAX_SIZE = 400; 
-    let size = window.innerWidth;
+    let size = Math.min(window.innerWidth, window.innerHeight * 0.8);
     
     size = Math.min(MAX_SIZE, size);
     
@@ -717,7 +868,7 @@ function resizeCanvas() {
     
     gridSize = newCanvasSize / BLOCKS; 
     
-    if (!gameOver) draw();
+    if (!gameOver && resourcesLoaded) draw();
 }
 
 function partialGameRestart() {
@@ -738,52 +889,75 @@ function partialGameRestart() {
     generateAsteroids(calculateAsteroidCount()); 
     generateMeteors(currentLevel); 
     
+    updatePowerUpIndicator();
+    
     stopBGM();
-    bgmSource = playSound('bgm', true, 0.4); // Riavvia BGM
+    bgmSource = playSound('bgm', true, 0.4);
     
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
 
-// Funzione di pre-caricamento delle immagini
 function preloadImages() {
     return new Promise(resolve => {
-        let loadedCount = 0;
         const keys = Object.keys(IMAGE_PATHS);
+        
+        if (keys.length === 0) {
+            resolve();
+            return;
+        }
+
+        let loadedCount = 0;
+        let errorCount = 0;
 
         keys.forEach(key => {
             const img = new Image();
+            
             img.onload = () => {
                 loadedCount++;
                 spriteImages[key] = img;
                 imagesLoaded = loadedCount;
-                if (loadedCount === totalImages) { resolve(); }
+                
+                if (loadedCount + errorCount === totalImages) { 
+                    resolve(); 
+                }
             };
+            
             img.onerror = () => {
-                console.error(`Errore nel caricamento dell'immagine: ${IMAGE_PATHS[key]}. Controlla il percorso.`);
-                loadedCount++;
-                imagesLoaded = loadedCount; 
-                if (loadedCount === totalImages) { resolve(); }
+                console.warn(`Immagine ${IMAGE_PATHS[key]} non disponibile. Verrà usato un fallback.`);
+                errorCount++;
+                spriteImages[key] = null;
+                
+                if (loadedCount + errorCount === totalImages) { 
+                    resolve(); 
+                }
             };
+            
             img.src = IMAGE_PATHS[key];
         });
-        if (totalImages === 0) resolve();
     });
 }
 
 async function initGame() {
-    resumeAudioContext(); // Tenta di sbloccare l'audio
+    resumeAudioContext();
     resizeCanvas(); 
     
-    // Caricamento asincrono delle risorse
-    const loadAudioPromises = Object.keys(AUDIO_PATHS).map(key => loadAudio(AUDIO_PATHS[key], key));
-    await Promise.all([preloadImages(), ...loadAudioPromises]); 
+    resourcesLoaded = false;
+    draw();
+    
+    try {
+        const loadAudioPromises = Object.keys(AUDIO_PATHS).map(key => loadAudio(AUDIO_PATHS[key], key));
+        await Promise.all([preloadImages(), ...loadAudioPromises]); 
+        resourcesLoaded = true;
+    } catch (error) {
+        console.error('Errore nel caricamento delle risorse:', error);
+        resourcesLoaded = true;
+    }
 
     loadHighScore(); 
     displayLeaderboard(); 
 
-    // Avvia la musica di sottofondo
-    if (bgmSource) stopBGM(); 
+    stopBGM(); 
     bgmSource = playSound('bgm', true, 0.4); 
 
     currentLevel = 1;
@@ -809,6 +983,8 @@ async function initGame() {
     generateMeteors(currentLevel); 
     generateStars(); 
 
+    updatePowerUpIndicator();
+
     draw();
     gameInterval = setInterval(update, gameSpeed); 
 }
@@ -819,24 +995,29 @@ async function initGame() {
 
 function handleKeyPress(event) {
     if (gameOver || directionChanged) return;
+    
     const keyPressed = event.key;
     let newDirection = null;
 
     switch (keyPressed) {
         case 'ArrowUp':
         case 'w':
+        case 'W':
             if (direction !== 'down') newDirection = 'up';
             break;
         case 'ArrowDown':
         case 's':
+        case 'S':
             if (direction !== 'up') newDirection = 'down';
             break;
         case 'ArrowLeft':
         case 'a':
+        case 'A':
             if (direction !== 'right') newDirection = 'left';
             break;
         case 'ArrowRight':
         case 'd':
+        case 'D':
             if (direction !== 'left') newDirection = 'right';
             break;
     }
@@ -844,7 +1025,9 @@ function handleKeyPress(event) {
     if (newDirection) {
         direction = newDirection;
         directionChanged = true; 
+        event.preventDefault();
     }
+    
     resumeAudioContext(); 
 }
 
@@ -917,7 +1100,6 @@ restartButton.addEventListener('click', () => {
     initGame();
 });
 
-// Event Listeners per lo Swipe sul Canvas
 canvas.addEventListener('touchstart', event => {
     if (gameOver) return;
     touchStartX = event.touches[0].clientX;
@@ -926,14 +1108,19 @@ canvas.addEventListener('touchstart', event => {
 }, { passive: false }); 
 
 canvas.addEventListener('touchmove', event => {
-    if (!gameOver) event.preventDefault(); 
+    event.preventDefault(); 
 }, { passive: false });
 
-canvas.addEventListener('touchend', handleSwipe);
+canvas.addEventListener('touchend', handleSwipe, { passive: false });
 
 window.addEventListener('resize', () => {
     resizeCanvas();
-    if (!gameOver) draw(); 
 });
+
+document.body.addEventListener('touchmove', (e) => {
+    if (e.target === canvas) {
+        e.preventDefault();
+    }
+}, { passive: false });
 
 initGame();
